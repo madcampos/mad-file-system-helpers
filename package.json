@@ -1,0 +1,51 @@
+{
+	"name": "file-system-helpers",
+	"version": "1.0.0",
+	"description": "Helpwer for working with the File System API",
+	"keywords": [
+		"file system",
+		"FS",
+		"browser file system",
+		"origin private file system",
+		"OPFS"
+	],
+	"author": "madcampos",
+	"license": "LGPL-2.1-or-later",
+	"devEngines": {
+		"packageManager": {
+			"name": "pnpm",
+			"version": "^11.0.7",
+			"onFail": "error"
+		}
+	},
+	"type": "module",
+	"exports": {
+		".": "./dist/opfs.js",
+		"./opfs": "./dist/opfs.js",
+		"./path": "./dist/path.js",
+		"./permissions": "./dist/permissions.js",
+		"./access": "./dist/fs-access.js"
+	},
+	"scripts": {
+		"bootstrap": "playwright install chromium",
+
+		"build": "tsc",
+
+		"format": "dprint fmt",
+
+		"typecheck": "tsc --noEmit",
+		"lint:js": "oxlint --fix",
+		"lint": "pnpm run typecheck && pnpm run lint:js",
+
+		"test": "vitest"
+	},
+	"devDependencies": {
+		"@types/wicg-file-system-access": "^2023.10.7",
+		"@vitest/browser-playwright": "^4.1.6",
+		"dprint": "^0.54.0",
+		"oxlint": "^1.64.0",
+		"oxlint-tsgolint": "^0.22.1",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.5"
+	}
+}
