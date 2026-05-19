@@ -55,14 +55,13 @@ export async function resolveParentHandle(pathOrHandle: string | FileSystemHandl
 	if (typeof pathOrHandle === 'string') {
 		resolvedPath = resolve(pathOrHandle);
 	} else {
-		resolvedPath = (await resolvedRootDir.resolve(pathOrHandle) ?? []).join('/');
+		resolvedPath = resolve((await resolvedRootDir.resolve(pathOrHandle) ?? []).join('/'));
 	}
 
 	const parentDirPath = dirname(resolvedPath);
 	const parentDirHandle = await getDirHandle(parentDirPath, { rootDir, recursive });
 
 	return {
-		isRoot: await resolvedRootDir.isSameEntry(parentDirHandle),
 		parentHandle: parentDirHandle,
 		parentPath: parentDirPath,
 		name: basename(resolvedPath)
@@ -112,7 +111,7 @@ export interface CheckDirExistsOptions {
 	rootDir?: FileSystemDirectoryHandle;
 }
 
-export async function checkDirExists(path: string, { rootDir }: CheckDirExistsOptions) {
+export async function checkDirExists(path: string, { rootDir }: CheckDirExistsOptions = {}) {
 	try {
 		const { name, parentHandle } = await resolveParentHandle(path, { rootDir });
 
@@ -137,7 +136,7 @@ export interface CheckFileExistsOptions {
 	rootDir?: FileSystemDirectoryHandle;
 }
 
-export async function checkFileExists(path: string, { rootDir }: CheckFileExistsOptions) {
+export async function checkFileExists(path: string, { rootDir }: CheckFileExistsOptions = {}) {
 	try {
 		const { name, parentHandle } = await resolveParentHandle(path, { rootDir });
 
@@ -182,14 +181,15 @@ export interface FileSystemEntry {
  * @param options The options for function.
  */
 export async function listDirEntries(pathOrHandle: string | FileSystemDirectoryHandle, { depth = 0, rootDir }: ListDirEntriesOptions = {}) {
-	const { name, parentHandle } = await resolveParentHandle(pathOrHandle, { rootDir });
-	const dirHandle = await parentHandle.getDirectoryHandle(name);
+	const { name, parentHandle, parentPath } = await resolveParentHandle(pathOrHandle, { rootDir });
+	const resolvedRootHandle = rootDir ?? await navigator.storage.getDirectory();
+	const dirHandle = (parentPath === '/' && name === '') ? resolvedRootHandle : await parentHandle.getDirectoryHandle(name);
 
 	async function getRecursiveEntries(curDirHandle: FileSystemDirectoryHandle, curDepth: number) {
 		const entries: FileSystemEntry[] = [];
 
 		for await (const [name, entry] of curDirHandle.entries()) {
-			if (entry.kind === 'file' || curDepth > depth) {
+			if (entry.kind === 'file' || curDepth >= depth) {
 				entries.push({
 					name,
 					handle: entry
@@ -212,9 +212,6 @@ export async function listDirEntries(pathOrHandle: string | FileSystemDirectoryH
 
 // #region Write File
 export interface WriteFileHandleOptions {
-	/** Creates the file if it doesn't exist. Throws an error otherwise */
-	touch?: boolean;
-
 	/** Creates the directory structure if it doesn't exist. Throws an error otherwise */
 	recursive?: boolean;
 
@@ -239,10 +236,10 @@ export interface WriteFileHandleOptions {
 export async function writeFile(
 	pathOrHandle: string | FileSystemFileHandle,
 	data: FileSystemWriteChunkType,
-	{ recursive = true, rootDir, touch = true, overwrite = true }: WriteFileHandleOptions = {}
+	{ recursive = true, rootDir, overwrite = true }: WriteFileHandleOptions = {}
 ) {
 	const { name, parentHandle } = await resolveParentHandle(pathOrHandle, { recursive: recursive, rootDir });
-	const fileHandle = await parentHandle.getFileHandle(name, { create: touch });
+	const fileHandle = await parentHandle.getFileHandle(name, { create: true });
 	const file = await fileHandle.getFile();
 
 	if (file.size && !overwrite) {
@@ -259,9 +256,6 @@ export async function writeFile(
 }
 
 export interface AppendFileHandleOptions {
-	/** Creates the file if it doesn't exist. Throws an error otherwise */
-	touch?: boolean;
-
 	/** Creates the directory structure if it doesn't exist. Throws an error otherwise */
 	recursive?: boolean;
 
@@ -280,13 +274,13 @@ export interface AppendFileHandleOptions {
  * @param data The data to append to the file.
  * @param options The options for function.
  */
-export async function appendFile(pathOrHandle: string | FileSystemFileHandle, data: FileSystemWriteChunkType, { recursive, rootDir, touch }: AppendFileHandleOptions = {}) {
-	const { name, parentHandle } = await resolveParentHandle(pathOrHandle, { recursive: recursive ?? touch, rootDir });
-	const fileHandle = await parentHandle.getFileHandle(name, { create: touch });
+export async function appendFile(pathOrHandle: string | FileSystemFileHandle, data: FileSystemWriteChunkType, { recursive, rootDir }: AppendFileHandleOptions = {}) {
+	const { name, parentHandle } = await resolveParentHandle(pathOrHandle, { recursive: recursive, rootDir });
+	const fileHandle = await parentHandle.getFileHandle(name, { create: true });
 
 	await requestHandlePermissions(fileHandle, 'readwrite');
 
-	const stream = await fileHandle.createWritable();
+	const stream = await fileHandle.createWritable({ keepExistingData: true });
 	const file = await fileHandle.getFile();
 
 	await stream.seek(file.size);
@@ -321,25 +315,27 @@ export interface RemoveDirOptions {
  * @param options The options for function.
  */
 export async function removeDir(pathOrHandle: string | FileSystemDirectoryHandle, { recursive, rootDir }: RemoveDirOptions) {
-	const { name, parentHandle, isRoot } = await resolveParentHandle(pathOrHandle, { rootDir });
+	const { name, parentHandle, parentPath } = await resolveParentHandle(pathOrHandle, { rootDir });
 
-	if (isRoot) {
-		const dirHandle = await parentHandle.getDirectoryHandle(name);
-
-		await requestHandlePermissions(dirHandle, 'readwrite');
+	if (parentPath === '/' && name === '') {
 		await requestHandlePermissions(parentHandle, 'readwrite');
 
-		await parentHandle.removeEntry(name, { recursive });
+		for await (const childName of parentHandle.keys()) {
+			await parentHandle.removeEntry(childName, { recursive });
+		}
 
 		return;
 	}
 
-	const entries = await listDirEntries(parentHandle, { rootDir, depth: 0 });
+	const dirHandle = await parentHandle.getDirectoryHandle(name);
+	const entries = await listDirEntries(dirHandle, { rootDir, depth: 0 });
 
 	for (const entry of entries) {
 		// oxlint-disable-next-line no-await-in-loop
 		await parentHandle.removeEntry(entry.name, { recursive });
 	}
+
+	await parentHandle.removeEntry(name, { recursive });
 }
 
 export interface RemoveFileOptions {
@@ -457,7 +453,7 @@ export async function copyFile(
 	}
 
 	const file = await sourceHandle.getFile();
-	await writeFile(destinationPathOrHandle, await file.arrayBuffer(), { rootDir, recursive, overwrite, touch: true });
+	await writeFile(destinationPathOrHandle, await file.arrayBuffer(), { rootDir, recursive, overwrite });
 }
 // #endregion
 
