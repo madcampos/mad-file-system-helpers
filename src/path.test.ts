@@ -175,3 +175,7 @@ describe('encodePath', () => {
 		expect(encodePath('foo/bar', customReplacer)).toBe('FOO/BAR');
 	});
 });
+
+describe.skip('decodePath', () => {
+	// TODO
+});
