@@ -2,19 +2,25 @@
 
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
-import type { BrowserInstanceOption } from 'vitest/node';
 
+// @ts-expect-error
 // oxlint-disable-next-line import/no-default-export
 export default defineConfig(() => ({
 	test: {
+		reporters: ['default'],
+		coverage: {
+			provider: 'v8',
+			enabled: true
+		},
 		browser: {
 			enabled: true,
 			provider: playwright(),
 			// https://vitest.dev/config/browser/playwright
 			instances: [
-				// oxlint-disable-next-line typescript/consistent-type-assertions
-				{ browser: 'chromium' } as BrowserInstanceOption
-			]
+				{ browser: 'chromium' }
+			],
+			ui: false,
+			headless: true
 		}
 	}
 }));

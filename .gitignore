@@ -13,3 +13,6 @@ lerna-debug.log*
 # Dependencies
 node_modules
 *.tsbuildinfo
+
+# Tests
+coverage
