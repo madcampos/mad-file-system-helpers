@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { requestHandlePermissions } from './permissions.ts';
 
 describe('requestHandlePermissions', () => {
-	test('Permissions already granted', async () => {
+	test('When permissions are already granted, then it does not request them again', async () => {
 		// oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
 		const handle = {
 			queryPermission: vi.fn().mockResolvedValue('granted'),
@@ -15,7 +15,7 @@ describe('requestHandlePermissions', () => {
 		expect(handle.requestPermission).not.toHaveBeenCalled();
 	});
 
-	test('New permissions are granted', async () => {
+	test('When permissions are prompted and then granted, then it resolves without error', async () => {
 		// oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
 		const handle = {
 			queryPermission: vi.fn().mockResolvedValue('prompt'),
@@ -28,7 +28,7 @@ describe('requestHandlePermissions', () => {
 		expect(handle.requestPermission).toHaveBeenCalledWith({ mode: 'read' });
 	});
 
-	test('New permissions are not granted', async () => {
+	test('When permissions are prompted and then denied, then it throws an error', async () => {
 		// oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
 		const handle = {
 			queryPermission: vi.fn().mockResolvedValue('prompt'),
