@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { basename, dirname, extname, normalize, pathToSegments, resolve } from './path';
+import { basename, dirname, encodePath, extname, pathToSegments, resolve } from './path';
 
 describe('pathToSegments', () => {
 	test('A single slash returns no segment', () => {
@@ -149,19 +149,19 @@ describe('resolve', () => {
 	});
 });
 
-describe('normalize', () => {
+describe('encodePath', () => {
 	test('Default replace resolves restricted characters', () => {
-		expect(normalize('foo/bar/baz?')).toBe('foo/bar/baz%3f');
-		expect(normalize('foo:bar')).toBe('foo%3abar');
+		expect(encodePath('foo/bar/baz?')).toBe('foo/bar/baz%3f');
+		expect(encodePath('foo:bar')).toBe('foo%3abar');
 	});
 
 	test('Default replace resolves restricted names', () => {
-		expect(normalize('CON')).toBe('%43%4f%4e');
-		expect(normalize('COM1')).toBe('%43%4f%4d%31');
+		expect(encodePath('CON')).toBe('%43%4f%4e');
+		expect(encodePath('COM1')).toBe('%43%4f%4d%31');
 	});
 
 	test('Custom replace works', () => {
 		const customReplacer = (segment: string) => segment.toUpperCase();
-		expect(normalize('foo/bar', customReplacer)).toBe('FOO/BAR');
+		expect(encodePath('foo/bar', customReplacer)).toBe('FOO/BAR');
 	});
 });

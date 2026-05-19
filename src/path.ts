@@ -178,13 +178,15 @@ function defaultReplacer(segment: string) {
 }
 
 /**
- * Normalizes a path string, taking care of restricted characters and names.
+ * Encodes a path string, taking care of restricted characters and names.
  *
  * @param path The path to normalize.
  * @param replacer A custom replacer function that will be invoked for each segment of the path.
  */
-export function normalize(path: string, replacer?: (segment: string) => string) {
+export function encodePath(path: string, replacer?: (segment: string) => string) {
 	const segments = pathToSegments(path);
 
 	return segments.map((segment) => (replacer ?? defaultReplacer)(segment)).join('/');
 }
+
+// TODO: add decode path function
