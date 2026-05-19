@@ -14,6 +14,7 @@ import {
 	writeFile
 } from './opfs.ts';
 
+// #region Get Handles
 describe('getDirHandle', () => {
 	beforeEach(async () => {
 		const rootDir = await navigator.storage.getDirectory();
@@ -241,7 +242,9 @@ describe('getFileHandle', () => {
 		expect((await root.resolve(handle))?.length).toBe(1);
 	});
 });
+// #endregion
 
+// #region Check existence
 describe('checkDirExists', () => {
 	beforeEach(async () => {
 		const rootDir = await navigator.storage.getDirectory();
@@ -293,7 +296,9 @@ describe('checkFileExists', () => {
 		await expect(checkFileExists('bar')).rejects.toThrow();
 	});
 });
+// #endregion
 
+// #region List dir entries
 describe('listDirEntries', () => {
 	beforeEach(async () => {
 		const rootDir = await navigator.storage.getDirectory();
@@ -333,7 +338,9 @@ describe('listDirEntries', () => {
 			.toBe(true);
 	});
 });
+// #endregion
 
+// #region Write File
 describe('writeFile', () => {
 	beforeEach(async () => {
 		const rootDir = await navigator.storage.getDirectory();
@@ -465,7 +472,9 @@ describe('appendFile', () => {
 		await expect(appendFile('dir', 'foo')).rejects.toThrow();
 	});
 });
+// #endregion
 
+// #region Delete
 describe('removeDir', () => {
 	beforeEach(async () => {
 		const rootDir = await navigator.storage.getDirectory();
@@ -572,3 +581,4 @@ describe('removeFile', () => {
 		await expect(removeFile(handle as unknown as FileSystemFileHandle)).rejects.toThrow();
 	});
 });
+// #endregion
