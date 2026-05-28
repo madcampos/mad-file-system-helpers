@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { basename, dirname, encodePath, extname, pathToSegments, resolve } from './path';
+import { basename, decodePath, dirname, encodePath, extname, pathToSegments, resolve } from './path';
 
 describe('pathToSegments', () => {
 	test('When the path is a single slash, then it returns no segments', () => {
@@ -176,6 +176,17 @@ describe('encodePath', () => {
 	});
 });
 
-describe.skip('decodePath', () => {
-	// TODO
+describe('decodePath', () => {
+	test('When the path contains a single %, then it remains a single %', () => {
+		expect(decodePath('%')).toBe('%');
+	});
+
+	test('When the path is percent encoded, then it is decoded correctly', () => {
+		expect(decodePath('%2a%22/%5c%3e%3c%3a%7c%3f%27')).toBe('*"/\\><:|?\'');
+	});
+
+	test('When a custom replacer is provided, then it is used to decode segments', () => {
+		const customReplacer = (segment: string) => segment.toLowerCase();
+		expect(decodePath('FOO/BAR', customReplacer)).toBe('foo/bar');
+	});
 });
