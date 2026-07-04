@@ -1,6 +1,6 @@
 {
 	"name": "@mad-c/file-system-helpers",
-	"version": "1.0.0",
+	"version": "0.0.0",
 	"description": "Helpwer for working with the File System API",
 	"keywords": [
 		"file system",
@@ -12,7 +12,9 @@
 	"author": "madcampos",
 	"license": "LGPL-2.1-or-later",
 	"type": "module",
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"exports": {
 		".": "./dist/opfs.js",
 		"./path": "./dist/path.js",
@@ -27,11 +29,14 @@
 		"lint:js": "oxlint --fix",
 		"lint": "pnpm run typecheck && pnpm run lint:js",
 		"test": "vitest",
+		"changelog": "bumpy generate",
 		"prepublishOnly": "pnpm run build",
-		"preversion": ""
+		"bump-version": "bumpy version --commit",
+		"postbump-version": "bumpy publish"
 	},
 	"devDependencies": {
 		"@types/wicg-file-system-access": "^2023.10.7",
+		"@varlock/bumpy": "^1.18.0",
 		"@vitest/browser-playwright": "^4.1.9",
 		"@vitest/coverage-v8": "^4.1.9",
 		"dprint": "^0.54.0",
