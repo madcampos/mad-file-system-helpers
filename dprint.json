@@ -68,22 +68,6 @@
 		"jsonTrailingCommaFiles": ["tsconfig.json", ".vscode/settings.json"],
 		"ignoreNodeCommentText": "dprint-ignore-line"
 	},
-	"malva": {
-		"printWidth": 180,
-		"lineBreak": "lf",
-		"hexCase": "lower",
-		"hexColorLength": "long",
-		"quotes": "preferSingle",
-		"operatorLinebreak": "after",
-		"blockSelectorLinebreak": "consistent",
-		"omitNumberLeadingZero": false,
-		"trailingComma": false,
-		"padComments": true,
-		"linebreakInPseudoParens": false,
-		"declarationOrder": "alphabetical",
-		"singleLineBlockThreshold": 1,
-		"ignoreCommentDirective": "dprint-ignore"
-	},
 	"markdown": {
 		"textWrap": "maintain",
 		"emphasisKind": "underscores",
@@ -92,32 +76,6 @@
 		"ignoreFileDirective": "dprint-ignore",
 		"ignoreStartDirective": "dprint-ignore-start",
 		"ignoreEndDirective": "dprint-ignore-end"
-	},
-	"markup": {
-		"printWidth": 180,
-		"lineBreak": "lf",
-		"quotes": "double",
-		"formatComments": false,
-		"scriptIndent": true,
-		"styleIndent": true,
-		"closingBracketSameLine": false,
-		"closingTagLineBreakForEmpty": "fit",
-		"maxAttrsPerLine": null,
-		"preferAttrsSingleLine": false,
-		"html.normal.selfClosing": false,
-		"html.void.selfClosing": true,
-		"component.selfClosing": true,
-		"svg.selfClosing": true,
-		"mathml.selfClosing": false,
-		"whitespaceSensitivity": "css",
-		"component.whitespaceSensitivity": "css",
-		"doctypeKeywordCase": "upper",
-		"vBindStyle": "short",
-		"vOnStyle": "short",
-		"vForDelimiterStyle": "of",
-		"vSlotStyle": "short",
-		"vBindSameNameShortHand": false,
-		"astroAttrShorthand": true
 	},
 	"yaml": {
 		"printWidth": 180,
@@ -138,7 +96,7 @@
 	"excludes": [
 		"dist/**",
 		"**/node_modules",
-		"**/*-lock.json"
+		"**/*-lock.yaml"
 	],
 	"plugins": [
 		"https://plugins.dprint.dev/typescript-0.91.4.wasm",

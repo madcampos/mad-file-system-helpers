@@ -1,5 +1,5 @@
 {
-	"name": "file-system-helpers",
+	"name": "@mad-c/file-system-helpers",
 	"version": "1.0.0",
 	"description": "Helpwer for working with the File System API",
 	"keywords": [
@@ -11,13 +11,6 @@
 	],
 	"author": "madcampos",
 	"license": "LGPL-2.1-or-later",
-	"devEngines": {
-		"packageManager": {
-			"name": "pnpm",
-			"version": "^11.0.7",
-			"onFail": "error"
-		}
-	},
 	"type": "module",
 	"exports": {
 		".": "./dist/opfs.js",
@@ -28,25 +21,21 @@
 	},
 	"scripts": {
 		"bootstrap": "playwright install chromium",
-
 		"build": "tsc --exclude \"src/**/*.test.ts\"",
-
 		"format": "dprint fmt",
-
 		"typecheck": "tsc --noEmit",
 		"lint:js": "oxlint --fix",
 		"lint": "pnpm run typecheck && pnpm run lint:js",
-
 		"test": "vitest"
 	},
 	"devDependencies": {
 		"@types/wicg-file-system-access": "^2023.10.7",
-		"@vitest/browser-playwright": "^4.1.6",
-		"@vitest/coverage-v8": "^4.1.6",
+		"@vitest/browser-playwright": "^4.1.9",
+		"@vitest/coverage-v8": "^4.1.9",
 		"dprint": "^0.54.0",
-		"oxlint": "^1.64.0",
-		"oxlint-tsgolint": "^0.22.1",
+		"oxlint": "^1.71.0",
+		"oxlint-tsgolint": "^0.23.0",
 		"typescript": "^6.0.3",
-		"vitest": "^4.1.6"
+		"vitest": "^4.1.9"
 	}
 }
