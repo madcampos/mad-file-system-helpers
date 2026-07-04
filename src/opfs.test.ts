@@ -5,9 +5,13 @@ import {
 	appendFile,
 	checkDirExists,
 	checkFileExists,
+	copyDir,
+	copyFile,
 	getDirHandle,
 	getFileHandle,
 	listDirEntries,
+	moveDir,
+	moveFile,
 	removeDir,
 	removeFile,
 	resolveParentHandle,
@@ -579,6 +583,129 @@ describe('removeFile', () => {
 		const handle = await getDirHandle('foo', { recursive: true });
 		// oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
 		await expect(removeFile(handle as unknown as FileSystemFileHandle)).rejects.toThrow();
+	});
+});
+// #endregion
+
+// #region Copy
+describe('copyFile', () => {
+	beforeEach(async () => {
+		const rootDir = await navigator.storage.getDirectory();
+
+		for await (const name of rootDir.keys()) {
+			await rootDir.removeEntry(name, { recursive: true });
+		}
+	});
+
+	test('When the file is copied, then it exists in the destination', async () => {
+		const content = 'Hello World';
+		await writeFile('source.txt', content);
+		await copyFile('source.txt', 'dest.txt');
+
+		const exists = await checkFileExists('dest.txt');
+		expect(exists).toBe(true);
+
+		const handle = await getFileHandle('dest.txt');
+		const file = await handle.getFile();
+		const text = await file.text();
+		expect(text).toBe(content);
+	});
+
+	test('When the destination exists and overwrite is false, then it throws an error', async () => {
+		await writeFile('source.txt', 'source');
+		await writeFile('dest.txt', 'dest');
+
+		await expect(copyFile('source.txt', 'dest.txt', { overwrite: false })).rejects.toThrow();
+	});
+});
+
+describe('copyDir', () => {
+	beforeEach(async () => {
+		const rootDir = await navigator.storage.getDirectory();
+
+		for await (const name of rootDir.keys()) {
+			await rootDir.removeEntry(name, { recursive: true });
+		}
+	});
+
+	test('When a directory is copied, then all its contents are copied recursively', async () => {
+		await writeFile('src/file1.txt', 'content1', { recursive: true });
+		await writeFile('src/sub/file2.txt', 'content2', { recursive: true });
+
+		await getDirHandle('dest', { recursive: true });
+		await copyDir('src', 'dest');
+
+		expect(await checkFileExists('dest/file1.txt')).toBe(true);
+		expect(await checkFileExists('dest/sub/file2.txt')).toBe(true);
+
+		const file1 = await (await getFileHandle('dest/file1.txt')).getFile();
+		expect(await file1.text()).toBe('content1');
+
+		const file2 = await (await getFileHandle('dest/sub/file2.txt')).getFile();
+		expect(await file2.text()).toBe('content2');
+	});
+
+	test('When the destination directory does not exist, then it throws an error', async () => {
+		await getDirHandle('src', { recursive: true });
+		await expect(copyDir('src', 'dest')).rejects.toThrow();
+	});
+});
+// #endregion
+
+// #region Move
+describe('moveFile', () => {
+	beforeEach(async () => {
+		const rootDir = await navigator.storage.getDirectory();
+
+		for await (const name of rootDir.keys()) {
+			await rootDir.removeEntry(name, { recursive: true });
+		}
+	});
+
+	test('When the file is moved, then it exists in the destination and not in the source', async () => {
+		const content = 'Move me';
+		await writeFile('source.txt', content);
+		await moveFile('source.txt', 'dest.txt');
+
+		expect(await checkFileExists('dest.txt')).toBe(true);
+		expect(await checkFileExists('source.txt')).toBe(false);
+
+		const text = await (await (await getFileHandle('dest.txt')).getFile()).text();
+		expect(text).toBe(content);
+	});
+
+	test('When the destination exists and overwrite is false, then it throws an error and keeps the source', async () => {
+		await writeFile('source.txt', 'source content');
+		await writeFile('dest.txt', 'dest content');
+
+		await expect(moveFile('source.txt', 'dest.txt', { overwrite: false })).rejects.toThrow();
+		expect(await checkFileExists('source.txt')).toBe(true);
+	});
+});
+
+describe('moveDir', () => {
+	beforeEach(async () => {
+		const rootDir = await navigator.storage.getDirectory();
+
+		for await (const name of rootDir.keys()) {
+			await rootDir.removeEntry(name, { recursive: true });
+		}
+	});
+
+	test('When a directory is moved, then all its contents are moved to the destination', async () => {
+		await writeFile('src/file1.txt', 'content1', { recursive: true });
+		await writeFile('src/sub/file2.txt', 'content2', { recursive: true });
+
+		await getDirHandle('dest', { recursive: true });
+		await moveDir('src', 'dest');
+
+		expect(await checkFileExists('dest/file1.txt')).toBe(true);
+		expect(await checkFileExists('dest/sub/file2.txt')).toBe(true);
+		expect(await checkFileExists('src/file1.txt')).toBe(false);
+		expect(await checkFileExists('src/sub/file2.txt')).toBe(false);
+
+		const file2 = await (await getFileHandle('dest/sub/file2.txt')).getFile();
+		expect(await file2.text()).toBe('content2');
 	});
 });
 // #endregion

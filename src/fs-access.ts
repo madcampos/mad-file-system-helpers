@@ -69,24 +69,25 @@ export async function getUserDirHandle(options: DirectoryPickerOptions = {}, per
 	}
 }
 
-export async function saveHandle(id: string, handle: FileSystemHandle) {
+// oxlint-disable-next-line typescript/no-unnecessary-type-parameters
+export async function saveHandle<TMetadata = unknown>(id: string, handle: FileSystemHandle, metadata?: TMetadata) {
 	return new Promise<void>((resolve, reject) => {
 		// oxlint-disable typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
 		const openRequest = indexedDB.open(IDB_DATABASE, IDB_VERSION);
 
-		openRequest.addEventListener('upgradeneeded', (event) => {
-			const idb = (event.target as IDBOpenDBRequest).result;
+		openRequest.addEventListener('upgradeneeded', (evt) => {
+			const idb = (evt.target as IDBOpenDBRequest).result;
 
 			if (!idb.objectStoreNames.contains(IDB_STORE)) {
 				idb.createObjectStore(IDB_STORE);
 			}
 		});
 
-		openRequest.addEventListener('success', (event) => {
-			const idb = (event.target as IDBOpenDBRequest).result;
+		openRequest.addEventListener('success', (evt) => {
+			const idb = (evt.target as IDBOpenDBRequest).result;
 			const transaction = idb.transaction(IDB_STORE, 'readwrite');
 			const store = transaction.objectStore(IDB_STORE);
-			const putRequest = store.put(handle, id);
+			const putRequest = store.put({ handle, metadata }, id);
 
 			putRequest.addEventListener('success', () => resolve());
 			putRequest.addEventListener('error', () => reject(putRequest.error ?? new Error('Failed to save handle on IndexedDB')));
@@ -97,26 +98,27 @@ export async function saveHandle(id: string, handle: FileSystemHandle) {
 	});
 }
 
-export async function getHandle(id: string) {
-	return new Promise<FileSystemHandle | undefined>((resolve, reject) => {
+// oxlint-disable-next-line typescript/no-unnecessary-type-parameters
+export async function getHandle<TMetadata = unknown>(id: string) {
+	return new Promise<{ handle: FileSystemHandle, metadata?: TMetadata } | undefined>((resolve, reject) => {
 		// oxlint-disable typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
 		const openRequest = indexedDB.open(IDB_DATABASE, IDB_VERSION);
 
-		openRequest.addEventListener('upgradeneeded', (event) => {
-			const idb = (event.target as IDBOpenDBRequest).result;
+		openRequest.addEventListener('upgradeneeded', (evt) => {
+			const idb = (evt.target as IDBOpenDBRequest).result;
 
 			if (!idb.objectStoreNames.contains(IDB_STORE)) {
 				idb.createObjectStore(IDB_STORE);
 			}
 		});
 
-		openRequest.addEventListener('success', (event) => {
-			const idb = (event.target as IDBOpenDBRequest).result;
+		openRequest.addEventListener('success', (evt) => {
+			const idb = (evt.target as IDBOpenDBRequest).result;
 			const transaction = idb.transaction(IDB_STORE, 'readonly');
 			const store = transaction.objectStore(IDB_STORE);
-			const getRequest = store.get(id);
+			const getRequest: IDBRequest<{ handle: FileSystemHandle, metadata?: TMetadata } | undefined> = store.get(id);
 
-			getRequest.addEventListener('success', () => resolve(getRequest.result as FileSystemHandle | undefined));
+			getRequest.addEventListener('success', () => resolve(getRequest.result));
 			getRequest.addEventListener('error', () => reject(getRequest.error ?? new Error('Failed to get handle from IndexedDB')));
 		});
 

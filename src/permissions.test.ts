@@ -1,5 +1,31 @@
 import { describe, expect, test, vi } from 'vitest';
-import { requestHandlePermissions } from './permissions.ts';
+import { getHandlePermisions, requestHandlePermissions } from './permissions.ts';
+
+describe('getHandlePermisions', () => {
+	test('When querying permissions, then it calls the handle method with the correct mode', async () => {
+		// oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
+		const handle = {
+			queryPermission: vi.fn().mockResolvedValue('granted')
+		} as unknown as FileSystemHandle;
+
+		const result = await getHandlePermisions(handle, 'readwrite');
+
+		expect(result).toBe('granted');
+		expect(handle.queryPermission).toHaveBeenCalledWith({ mode: 'readwrite' });
+	});
+
+	test('When no mode is provided, then it defaults to read', async () => {
+		// oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
+		const handle = {
+			queryPermission: vi.fn().mockResolvedValue('prompt')
+		} as unknown as FileSystemHandle;
+
+		const result = await getHandlePermisions(handle);
+
+		expect(result).toBe('prompt');
+		expect(handle.queryPermission).toHaveBeenCalledWith({ mode: 'read' });
+	});
+});
 
 describe('requestHandlePermissions', () => {
 	test('When permissions are already granted, then it does not request them again', async () => {

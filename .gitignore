@@ -16,3 +16,5 @@ node_modules
 
 # Tests
 coverage
+.vitest-attachments/
+__screenshots__/
