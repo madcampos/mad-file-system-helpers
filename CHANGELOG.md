@@ -1,6 +1,14 @@
 # Changelog
 
 
+
+## 1.0.2
+<sub>2026-07-05</sub>
+
+-  *(patch)*
+  - @mad-c/file-system-helpers: update project meta files
+  - @mad-c/file-system-helpers: Bump package version
+
 ## 1.0.1
 <sub>2026-07-05</sub>
 
