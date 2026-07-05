@@ -245,6 +245,24 @@ describe('getFileHandle', () => {
 		expect(handle.name).toBe('foo.txt');
 		expect((await root.resolve(handle))?.length).toBe(1);
 	});
+
+	describe('Invalid file names', () => {
+		test('When the file name starts with a null byte, then it throws an error', async () => {
+			await expect(getFileHandle('\0', { touch: true })).rejects.toThrow();
+		});
+
+		test('When the file name contains a backslash, then it throws an error', async () => {
+			await expect(getFileHandle('test\\file.txt', { touch: true })).rejects.toThrow();
+		});
+
+		test('When the file name is a dot, then it throws an error', async () => {
+			await expect(getFileHandle('.', { touch: true })).rejects.toThrow();
+		});
+
+		test('When the file name is dot-dot, then it throws an error', async () => {
+			await expect(getFileHandle('..', { touch: true })).rejects.toThrow();
+		});
+	});
 });
 // #endregion
 
