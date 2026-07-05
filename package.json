@@ -1,6 +1,6 @@
 {
 	"name": "@mad-c/file-system-helpers",
-	"version": "1.0.3",
+	"version": "1.1.0",
 	"description": "Helper for working with the File System API",
 	"keywords": [
 		"file system",

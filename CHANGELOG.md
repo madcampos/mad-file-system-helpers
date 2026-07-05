@@ -3,6 +3,13 @@
 
 
 
+
+## 1.1.0
+<sub>2026-07-05</sub>
+
+-  *(minor)*
+  - @mad-c/file-system-helpers: add tests for invalid file names
+
 ## 1.0.3
 <sub>2026-07-05</sub>
 
