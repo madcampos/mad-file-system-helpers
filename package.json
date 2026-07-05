@@ -29,12 +29,14 @@
 		"lint:js": "oxlint --fix",
 		"lint": "pnpm run typecheck && pnpm run lint:js",
 		"test": "vitest",
+		"docs": "node scripts/docs.ts",
 		"changelog": "bumpy generate",
 		"prepublishOnly": "pnpm run build",
 		"bump-version": "bumpy version --commit",
 		"postbump-version": "bumpy publish"
 	},
 	"devDependencies": {
+		"@types/node": "^26.0.1",
 		"@types/wicg-file-system-access": "^2023.10.7",
 		"@varlock/bumpy": "^1.18.0",
 		"@vitest/browser-playwright": "^4.1.9",
@@ -42,6 +44,7 @@
 		"dprint": "^0.54.0",
 		"oxlint": "^1.71.0",
 		"oxlint-tsgolint": "^0.23.0",
+		"tsdoc-markdown": "^1.5.0",
 		"typescript": "^6.0.3",
 		"vitest": "^4.1.9"
 	}
