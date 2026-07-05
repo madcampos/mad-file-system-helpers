@@ -53,8 +53,7 @@
 		"docs": "node scripts/docs.ts",
 		"changelog": "bumpy generate",
 		"prepublishOnly": "pnpm run build",
-		"bump-version": "bumpy version --commit",
-		"postbump-version": "bumpy publish"
+		"bump-version": "bumpy version --commit"
 	},
 	"devDependencies": {
 		"@types/node": "^26.0.1",

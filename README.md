@@ -1,4 +1,4 @@
-# file-system-helpers
+# @mad-c/file-system-helpers
 
 A collection of lightweight TypeScript helpers for the [File System API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API). Designed to simplify working with both the user-facing File System Access API and the Origin Private File System (OPFS).
 
