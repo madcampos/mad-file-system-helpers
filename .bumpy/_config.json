@@ -7,5 +7,5 @@
 		"internalAuthors": ["madcampos"]
 	}],
 	"versionCommitMessage": "version: Bump package version",
-	"publish": { "npmStaged": true }
+	"publish": { "npmStaged": false }
 }

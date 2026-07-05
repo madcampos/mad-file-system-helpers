@@ -1,7 +1,7 @@
 {
 	"name": "@mad-c/file-system-helpers",
 	"version": "1.0.1",
-	"description": "Helpwer for working with the File System API",
+	"description": "Helper for working with the File System API",
 	"keywords": [
 		"file system",
 		"FS",
@@ -9,8 +9,29 @@
 		"origin private file system",
 		"OPFS"
 	],
-	"author": "madcampos",
+	"author": {
+		"name": "madcampos",
+		"url": "https://madcampos.dev/"
+	},
 	"license": "LGPL-2.1-or-later",
+	"homepage": "https://github.com/madcampos/mad-file-system-helpers#readme",
+	"bugs": {
+		"url": "https://github.com/madcampos/mad-file-system-helpers/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/madcampos/mad-file-system-helpers.git"
+	},
+	"funding": [
+		{
+			"type": "Buy Me a Coffee",
+			"url": "https://buymeacoffee.com/madcampos"
+		},
+		{
+			"type": "Ko-Fi",
+			"url": "https://ko-fi.com/madcampos"
+		}
+	],
 	"type": "module",
 	"files": [
 		"dist"
