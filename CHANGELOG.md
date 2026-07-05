@@ -2,6 +2,13 @@
 
 
 
+
+## 1.0.3
+<sub>2026-07-05</sub>
+
+-  *(patch)*
+  - @mad-c/file-system-helpers: publish command and readme typo
+
 ## 1.0.2
 <sub>2026-07-05</sub>
 
