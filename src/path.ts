@@ -134,14 +134,15 @@ const RESTRICTED_NAMES = [
 
 const RESTRICTED_CHARACTERS = [
 	// INFO: C0 control characters
-	// oxlint-disable-next-line no-magic-numbers
+	// oxlint-disable-next-line no-magic-numbers unicorn/no-new-array
 	...new Array(32).fill('').map((_, i) => String.fromCharCode(i)),
 	// INFO: "del" character
 	'\x7f',
 	// INFO: C1 control characters
-	// oxlint-disable-next-line no-magic-numbers
+	// oxlint-disable-next-line no-magic-numbers unicorn/no-new-array
 	...new Array(32).fill('').map((_, i) => String.fromCharCode(128 + i)),
 	// INFO: characters not allowed on Windows/Linux/Mac
+	// oxlint-disable-next-line unicorn/no-useless-spread
 	...['*', '"', '/', '\\', '>', '<', ':', '|', '?', "'"],
 	// INFO: also add "%" to make it easier to decode lone "%" symbols
 	'%'

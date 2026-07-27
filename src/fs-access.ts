@@ -69,7 +69,6 @@ export async function getUserDirHandle(options: DirectoryPickerOptions = {}, per
 	}
 }
 
-// oxlint-disable-next-line typescript/no-unnecessary-type-parameters
 export async function saveHandle<TMetadata = unknown>(id: string, handle: FileSystemHandle, metadata?: TMetadata) {
 	return new Promise<void>((resolve, reject) => {
 		// oxlint-disable typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
@@ -98,7 +97,6 @@ export async function saveHandle<TMetadata = unknown>(id: string, handle: FileSy
 	});
 }
 
-// oxlint-disable-next-line typescript/no-unnecessary-type-parameters
 export async function getHandle<TMetadata = unknown>(id: string) {
 	return new Promise<{ handle: FileSystemHandle, metadata?: TMetadata } | undefined>((resolve, reject) => {
 		// oxlint-disable typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion

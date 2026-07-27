@@ -244,7 +244,7 @@ export async function writeFile(
 	data: FileSystemWriteChunkType,
 	{ recursive = true, rootDir, overwrite = true }: WriteFileHandleOptions = {}
 ) {
-	const { name, parentHandle } = await resolveParentHandle(pathOrHandle, { recursive: recursive, rootDir });
+	const { name, parentHandle } = await resolveParentHandle(pathOrHandle, { recursive, rootDir });
 	const fileHandle = await parentHandle.getFileHandle(name, { create: true });
 	const file = await fileHandle.getFile();
 
@@ -281,7 +281,7 @@ export interface AppendFileHandleOptions {
  * @param options The options for function.
  */
 export async function appendFile(pathOrHandle: string | FileSystemFileHandle, data: FileSystemWriteChunkType, { recursive, rootDir }: AppendFileHandleOptions = {}) {
-	const { name, parentHandle } = await resolveParentHandle(pathOrHandle, { recursive: recursive, rootDir });
+	const { name, parentHandle } = await resolveParentHandle(pathOrHandle, { recursive, rootDir });
 	const fileHandle = await parentHandle.getFileHandle(name, { create: true });
 
 	await requestHandlePermissions(fileHandle, 'readwrite');
