@@ -322,40 +322,127 @@ describe('checkFileExists', () => {
 
 // #region List dir entries
 describe('listDirEntries', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-
+	test('When no depth is provided, then it returns only the immediate children', async () => {
 		await getDirHandle('foo', { recursive: true });
 		await getFileHandle('bar/baz.txt', { touch: true, recursive: true });
 		await getFileHandle('bar/quux.txt', { touch: true, recursive: true });
 		await getDirHandle('bar/woot', { recursive: true });
 		await getFileHandle('bar/woot/zolt.txt', { touch: true });
 		await getFileHandle('bar/woot/yeet.txt', { touch: true });
-	});
 
-	test('When no depth is provided, then it returns only the immediate children', async () => {
 		const entries = await listDirEntries('/');
 
-		// oxlint-disable-next-line no-magic-numbers
 		expect(entries.length).toBe(2);
 	});
 
 	test('When a partial depth is provided, then it returns children up to that depth', async () => {
+		await getDirHandle('foo', { recursive: true });
+		await getFileHandle('bar/baz.txt', { touch: true, recursive: true });
+		await getFileHandle('bar/quux.txt', { touch: true, recursive: true });
+		await getDirHandle('bar/woot', { recursive: true });
+		await getFileHandle('bar/woot/zolt.txt', { touch: true });
+		await getFileHandle('bar/woot/yeet.txt', { touch: true });
+
 		const entries = await listDirEntries('/', { depth: 1 });
 
-		// oxlint-disable-next-line no-magic-numbers
 		expect(entries.length).toBe(5);
 	});
 
 	test('When depth is set to Infinity, then it returns all nested children', async () => {
+		await getDirHandle('foo', { recursive: true });
+		await getFileHandle('bar/baz.txt', { touch: true, recursive: true });
+		await getFileHandle('bar/quux.txt', { touch: true, recursive: true });
+		await getDirHandle('bar/woot', { recursive: true });
+		await getFileHandle('bar/woot/zolt.txt', { touch: true });
+		await getFileHandle('bar/woot/yeet.txt', { touch: true });
+
 		const entries = await listDirEntries('/', { depth: Infinity });
 
-		// oxlint-disable-next-line no-magic-numbers
 		expect(entries.length).toBe(7);
+	});
+
+	test('When sorting is not provided, then it defaults to numeric sorting', async () => {
+		await getDirHandle('b-dir', { recursive: true });
+		await getDirHandle('a-dir', { recursive: true });
+		await writeFile('file10.txt', '10', { recursive: true });
+		await writeFile('file2.txt', '2', { recursive: true });
+		await writeFile('file1.txt', '1', { recursive: true });
+
+		const entries = await listDirEntries('/');
+
+		expect(entries.map((entry) => entry.name)).toEqual(['a-dir', 'b-dir', 'file1.txt', 'file2.txt', 'file10.txt']);
+	});
+
+	test('When logographic sorting is provided, then it sorts files logographically', async () => {
+		await writeFile('file2.txt', '2', { recursive: true });
+		await writeFile('file10.txt', '10', { recursive: true });
+		await writeFile('file1.txt', '1', { recursive: true });
+
+		const entries = await listDirEntries('/', { sorting: 'logo', type: 'files' });
+
+		expect(entries.map((entry) => entry.name)).toEqual(['file1.txt', 'file10.txt', 'file2.txt']);
+	});
+
+	test('When numeric sorting is provided, then it sorts files numerically', async () => {
+		await writeFile('file2.txt', '2', { recursive: true });
+		await writeFile('file10.txt', '10', { recursive: true });
+		await writeFile('file1.txt', '1', { recursive: true });
+
+		const entries = await listDirEntries('/', { sorting: 'numeric', type: 'files' });
+
+		expect(entries.map((entry) => entry.name)).toEqual(['file1.txt', 'file2.txt', 'file10.txt']);
+	});
+
+	test('When sorting is disabled, then it does not sort files', async () => {
+		await getDirHandle('b-dir', { recursive: true });
+		await getDirHandle('a-dir', { recursive: true });
+		await writeFile('file10.txt', '10', { recursive: true });
+		await writeFile('file2.txt', '2', { recursive: true });
+		await writeFile('file1.txt', '1', { recursive: true });
+
+		const entries = await listDirEntries('/', { sorting: false, type: 'both' });
+
+		expect(entries.map((entry) => entry.name)).toEqual(['a-dir', 'b-dir', 'file1.txt', 'file10.txt', 'file2.txt']);
+	});
+
+	test('When type is not provided, then both files and directories are included', async () => {
+		await getDirHandle('dir', { recursive: true });
+		await writeFile('file.txt', 'content', { recursive: true });
+
+		const entries = await listDirEntries('/');
+
+		expect(entries.some((entry) => entry.name === 'dir')).toBe(true);
+		expect(entries.some((entry) => entry.name === 'file.txt')).toBe(true);
+	});
+
+	test('When type is directory, then only directories are included', async () => {
+		await getDirHandle('dir', { recursive: true });
+		await writeFile('file.txt', 'content', { recursive: true });
+
+		const entries = await listDirEntries('/', { type: 'directories' });
+
+		expect(entries.every((entry) => entry.handle instanceof FileSystemDirectoryHandle)).toBe(true);
+		expect(entries.map((entry) => entry.name)).toEqual(['dir']);
+	});
+
+	test('When type is file, then only files are included', async () => {
+		await getDirHandle('dir', { recursive: true });
+		await writeFile('file.txt', 'content', { recursive: true });
+
+		const entries = await listDirEntries('/', { type: 'files' });
+
+		expect(entries.every((entry) => entry.handle instanceof FileSystemFileHandle)).toBe(true);
+		expect(entries.map((entry) => entry.name)).toEqual(['file.txt']);
+	});
+
+	test('When type is both, then both files and directories are included', async () => {
+		await getDirHandle('dir', { recursive: true });
+		await writeFile('file.txt', 'content', { recursive: true });
+
+		const entries = await listDirEntries('/', { type: 'both' });
+
+		expect(entries.some((entry) => entry.name === 'dir')).toBe(true);
+		expect(entries.some((entry) => entry.name === 'file.txt')).toBe(true);
 	});
 });
 // #endregion

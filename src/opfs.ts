@@ -175,6 +175,21 @@ export interface ListDirEntriesOptions {
 	depth?: number;
 
 	/**
+	 * The type of entries to include. It can be only `files`, only `directories` or `both`.
+	 *
+	 * Defaults to `both`.
+	 */
+	type?: 'files' | 'directories' | 'both';
+
+	/**
+	 * If the entries should be sorted, meaning all directories will go first, and then all files.
+	 * The sorting can be either logographic (E.g.: "1", "10", "2") or numeric (E.g.: "1", "2", "10").
+	 *
+	 * Defaults to numeric sorting.
+	 */
+	sorting?: false | 'logo' | 'numeric';
+
+	/**
 	 * The file system root directory to resolve against. If not provided the Origin Private File System root will be used.
 	 *
 	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/File_System_API#origin_private_file_system|MDN Reference}
@@ -196,7 +211,7 @@ export interface FileSystemEntry {
  * @param pathOrHandle A path string or a {@link FileSystemHandle}
  * @param options The options for function.
  */
-export async function listDirEntries(pathOrHandle: string | FileSystemDirectoryHandle, { depth = 0, rootDir }: ListDirEntriesOptions = {}) {
+export async function listDirEntries(pathOrHandle: string | FileSystemDirectoryHandle, { depth = 0, rootDir, sorting = 'numeric', type = 'both' }: ListDirEntriesOptions = {}) {
 	const resolved = await resolveHandle(pathOrHandle, { rootDir });
 	const resolvedRootHandle = rootDir ?? await navigator.storage.getDirectory();
 	const dirHandle = (resolved.parentPath === '/' && resolved.name === '') ? resolvedRootHandle : await resolved.parentHandle.getDirectoryHandle(resolved.name);
@@ -223,7 +238,13 @@ export async function listDirEntries(pathOrHandle: string | FileSystemDirectoryH
 			handle
 		};
 
-		entries.push(entry);
+		if (handle instanceof FileSystemFileHandle && type !== 'directories') {
+			entries.push(entry);
+		}
+
+		if (handle instanceof FileSystemDirectoryHandle && type !== 'files') {
+			entries.push(entry);
+		}
 
 		if (handle instanceof FileSystemDirectoryHandle) {
 			if (entryDepth < depth) {
@@ -235,6 +256,11 @@ export async function listDirEntries(pathOrHandle: string | FileSystemDirectoryH
 			}
 		}
 		// oxlint-enable no-await-in-loop
+	}
+
+	if (sorting) {
+		const collator = new Intl.Collator('en', { usage: 'sort', numeric: sorting === 'numeric' });
+		return entries.sort((first, second) => collator.compare(first.path, second.path));
 	}
 
 	return entries;
