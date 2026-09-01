@@ -40,10 +40,23 @@ export async function getDirHandle(path: string, { rootDir, recursive }: GetDirH
 	return currentDirHandle;
 }
 
+export interface ResolveHandleOptions {
+	/** Creates the directory structure if it doesn't exist. Throws an error otherwise */
+	recursive?: boolean;
+
+	/**
+	 * The file system root directory to resolve against. If not provided the Origin Private File System root will be used.
+	 *
+	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/File_System_API#origin_private_file_system|MDN Reference}
+	 */
+	rootDir?: FileSystemDirectoryHandle;
+}
+
 export interface ResolvedHandle {
 	parentHandle: FileSystemDirectoryHandle;
 	parentPath: string;
 	name: string;
+	handle: FileSystemHandle | undefined;
 }
 
 /**
@@ -54,13 +67,15 @@ export interface ResolvedHandle {
  * @param pathOrHandle A path string or a {@link FileSystemHandle}
  * @param options The options for function.
  */
-export async function resolveHandle(pathOrHandle: string | FileSystemHandle, { recursive, rootDir }: GetDirHandleOptions = {}) {
+export async function resolveHandle(pathOrHandle: string | FileSystemHandle, { recursive, rootDir }: ResolveHandleOptions = {}) {
 	const resolvedRootDir = rootDir ?? await navigator.storage.getDirectory();
-	let resolvedPath;
+	let resolvedPath: string;
+	let handle: FileSystemHandle | undefined = undefined;
 
 	if (typeof pathOrHandle === 'string') {
 		resolvedPath = resolve(pathOrHandle);
 	} else {
+		handle = pathOrHandle;
 		resolvedPath = resolve(...(await resolvedRootDir.resolve(pathOrHandle) ?? []));
 	}
 
@@ -68,7 +83,8 @@ export async function resolveHandle(pathOrHandle: string | FileSystemHandle, { r
 		return {
 			parentHandle: resolvedRootDir,
 			parentPath: '/',
-			name: ''
+			name: '',
+			handle: resolvedRootDir
 		} satisfies ResolvedHandle;
 	}
 
@@ -77,10 +93,25 @@ export async function resolveHandle(pathOrHandle: string | FileSystemHandle, { r
 	const parentDirPath = dirname(resolvedPath);
 	const parentDirHandle = await getDirHandle(parentDirPath, { rootDir, recursive });
 
+	if (!handle) {
+		try {
+			handle = await parentDirHandle.getDirectoryHandle(name);
+		} catch {
+			// NOOP
+		}
+
+		try {
+			handle = await parentDirHandle.getFileHandle(name);
+		} catch {
+			// NOOP
+		}
+	}
+
 	return {
 		parentHandle: parentDirHandle,
 		parentPath: parentDirPath,
-		name
+		name,
+		handle
 	} satisfies ResolvedHandle;
 }
 

@@ -123,6 +123,43 @@ describe('resolveHandle', () => {
 		expect(name).toBe('');
 	});
 
+	test('When a handle is provided, then the same handle is returned', async () => {
+		const handle = await getDirHandle('foo', { recursive: true });
+		const { handle: returnedHandle } = await resolveHandle(handle);
+
+		expect(returnedHandle).toBe(handle);
+	});
+
+	test('When a path to an existing file is provided, then a handle is returned', async () => {
+		await writeFile('foo.txt', 'hello');
+		const { handle } = await resolveHandle('foo.txt');
+
+		expect(handle).toBeDefined();
+		expect(handle?.kind).toBe('file');
+		expect(handle?.name).toBe('foo.txt');
+	});
+
+	test('When a path to a non existing file is provided, then `handle` is undefined', async () => {
+		const { handle } = await resolveHandle('missing.txt');
+
+		expect(handle).toBeUndefined();
+	});
+
+	test('When a path to an existing directory is provided, then a handle is returned', async () => {
+		await getDirHandle('foo', { recursive: true });
+		const { handle } = await resolveHandle('foo');
+
+		expect(handle).toBeDefined();
+		expect(handle?.kind).toBe('directory');
+		expect(handle?.name).toBe('foo');
+	});
+
+	test('When a path to a non existing directory is provided, then `handle` is undefined', async () => {
+		const { handle } = await resolveHandle('missing-dir');
+
+		expect(handle).toBeUndefined();
+	});
+
 	test('When the path is a first-level directory, then it resolves to the root as parent', async () => {
 		const { parentPath, parentHandle, name } = await resolveHandle('foo');
 
