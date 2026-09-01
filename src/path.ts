@@ -14,22 +14,64 @@ export function pathToSegments(path: string) {
 }
 
 /**
+ * Resolves a sequence of paths or path segments into an absolute path.
+ * It is similar to node's `resolve` function.
+ *
+ * **Note**: If no absolute path is provided, the function prepends a `/`. It assumes the starting point is _always_ the file system root.
+ *
+ * @param paths A sequence of paths or path segments
+ */
+export function resolve(...paths: string[]) {
+	// INfO: concatenate paths, reseting when an absolute path is present.
+	let fullPath = '';
+	for (const path of paths) {
+		if (path.startsWith('/')) {
+			fullPath = path;
+		} else {
+			fullPath = fullPath ? `${fullPath}/${path}` : path;
+		}
+	}
+
+	// INFO: prepend initial slash.
+	if (!fullPath.startsWith('/')) {
+		fullPath = `/${fullPath}`;
+	}
+
+	// INFO: resolve `..`, `.`, and empty segments.
+	const stack: string[] = [];
+	const segments = pathToSegments(fullPath);
+
+	for (const segment of segments) {
+		if (segment === '..') {
+			stack.pop();
+		} else if (segment !== '.' && segment !== '') {
+			stack.push(segment);
+		}
+	}
+
+	return `/${stack.join('/')}`;
+}
+
+/**
  * Returns the directory name, given a path string.
  * It is similar to node's `dirname` fucntion.
  *
  * @param path The path to get the directory name
  */
 export function dirname(path: string) {
-	const segments = pathToSegments(path);
-	const pathBase = path.startsWith('/') ? '/' : '';
-
-	if (segments.length <= 1) {
-		return pathBase;
+	if (!path) {
+		return '';
 	}
 
-	const dirSegments = segments.slice(0, -1);
+	if (path === '/') {
+		return '/';
+	}
 
-	return `${pathBase}${dirSegments.join('/')}`;
+	const segments = pathToSegments(path);
+	const dirSegments = segments.slice(0, -1);
+	const resolvedPath = resolve(...dirSegments);
+
+	return resolvedPath.replace(/^\//u, path.startsWith('/') ? '/' : '');
 }
 
 /**
@@ -66,45 +108,6 @@ export function extname(path: string) {
 	}
 
 	return base.slice(index);
-}
-
-/**
- * Resolves a sequence of paths or path segments into an absolute path.
- * It is similar to node's `resolve` function.
- *
- * **Note**: If no absolute path is provided, the function prepends a `/`. It assumes the starting point is _always_ the file system root.
- *
- * @param paths A sequence of paths or path segments
- */
-export function resolve(...paths: string[]) {
-	// INfO: start by concatenating all paths
-	let fullPath = '';
-	for (const path of paths) {
-		if (path.startsWith('/')) {
-			fullPath = path;
-		} else {
-			fullPath = fullPath ? `${fullPath}/${path}` : path;
-		}
-	}
-
-	// INFO: prepend initial dash
-	if (!fullPath.startsWith('/')) {
-		fullPath = `/${fullPath}`;
-	}
-
-	// INFO: resolve `..`, `.`, and empty segments
-	const stack: string[] = [];
-	const segments = pathToSegments(fullPath);
-
-	for (const segment of segments) {
-		if (segment === '..') {
-			stack.pop();
-		} else if (segment !== '.' && segment !== '') {
-			stack.push(segment);
-		}
-	}
-
-	return `/${stack.join('/')}`;
 }
 
 const RESTRICTED_NAMES = [
