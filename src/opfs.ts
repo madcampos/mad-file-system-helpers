@@ -402,7 +402,11 @@ export interface RemoveDirOptions {
  * @param pathOrHandle A path string or a {@link FileSystemHandle}
  * @param options The options for function.
  */
-export async function removeDir(pathOrHandle: string | FileSystemDirectoryHandle, { recursive, rootDir }: RemoveDirOptions) {
+export async function removeDir(pathOrHandle: string | FileSystemDirectoryHandle, { recursive, rootDir }: RemoveDirOptions = {}) {
+	if (!pathOrHandle) {
+		throw new TypeError('Empty directory path');
+	}
+
 	const { name, parentHandle, parentPath } = await resolveHandle(pathOrHandle, { rootDir });
 
 	// INFO: handle the root of the file system.

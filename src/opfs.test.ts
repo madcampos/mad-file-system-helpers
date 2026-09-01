@@ -1,4 +1,4 @@
-// oxlint-disable max-lines
+// oxlint-disable max-lines no-magic-numbers
 
 import { beforeEach, describe, expect, test } from 'vitest';
 import {
@@ -18,18 +18,26 @@ import {
 	writeFile
 } from './opfs.ts';
 
+beforeEach(async () => {
+	const rootDir = await navigator.storage.getDirectory();
+
+	for await (const name of rootDir.keys()) {
+		await rootDir.removeEntry(name, { recursive: true });
+	}
+});
+
 // #region Get Handles
 describe('getDirHandle', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
 	test('When the path is empty, then it returns the root handle', async () => {
 		const handle = await getDirHandle('');
+
+		expect(handle).toBeDefined();
+		expect(handle.kind).toBe('directory');
+		expect(handle.name).toBe('');
+	});
+
+	test('When the path is a single slash, then it returns the root handle', async () => {
+		const handle = await getDirHandle('/');
 
 		expect(handle).toBeDefined();
 		expect(handle.kind).toBe('directory');
@@ -56,6 +64,7 @@ describe('getDirHandle', () => {
 
 	test('When the path does not exist and the `recursive` flag is true, then it creates the directory and returns a handle', async () => {
 		const handle = await getDirHandle('/foo/bar', { recursive: true });
+
 		expect(handle).toBeDefined();
 		expect(handle.kind).toBe('directory');
 		expect(handle.name).toBe('bar');
@@ -68,10 +77,10 @@ describe('getDirHandle', () => {
 	});
 
 	test('When `rootDir` is provided, then it resolves the path relative to it', async () => {
-		const root = await getDirHandle('CUSTOM_ROOT', { recursive: true });
+		const customRoot = await getDirHandle('CUSTOM_ROOT', { recursive: true });
 		await getDirHandle('CUSTOM_ROOT/foo', { recursive: true });
 
-		const handle = await getDirHandle('foo', { rootDir: root });
+		const handle = await getDirHandle('foo', { rootDir: customRoot });
 
 		expect(handle).toBeDefined();
 		expect(handle.kind).toBe('directory');
@@ -79,25 +88,51 @@ describe('getDirHandle', () => {
 	});
 
 	test('When `rootDir` is provided and `recursive` is true, then it resolves the path recursively relative to it', async () => {
-		const root = await getDirHandle('CUSTOM_ROOT', { recursive: true });
+		const customRoot = await getDirHandle('CUSTOM_ROOT', { recursive: true });
 
-		const handle = await getDirHandle('foo/bar', { rootDir: root, recursive: true });
+		const handle = await getDirHandle('foo/bar', { rootDir: customRoot, recursive: true });
 
 		expect(handle).toBeDefined();
 		expect(handle.kind).toBe('directory');
 		expect(handle.name).toBe('bar');
 	});
+
+	describe('Invalid directory names', () => {
+		test('When the directory name starts with a null byte, then it throws an error', async () => {
+			await expect(getDirHandle('\0', { recursive: true })).rejects.toThrow();
+		});
+
+		test('When the directory name contains a slash, then it is interpreted as a directory separator', async () => {
+			const handle = await getDirHandle('test/foo', { recursive: true });
+
+			expect(handle).toBeDefined();
+			expect(handle.kind).toBe('directory');
+			expect(handle.name).toBe('foo');
+		});
+
+		test('When the directory name contains a backslash, then it throws an error', async () => {
+			await expect(getDirHandle('test\\foo', { recursive: true })).rejects.toThrow();
+		});
+
+		test('When the directory name is a dot, then it resolves to the current directory', async () => {
+			const handle = await getDirHandle('.');
+
+			expect(handle).toBeDefined();
+			expect(handle.kind).toBe('directory');
+			expect(handle.name).toBe('');
+		});
+
+		test('When the directory name is dot-dot, then it resolves to the parent directory', async () => {
+			const handle = await getDirHandle('..');
+
+			expect(handle).toBeDefined();
+			expect(handle.kind).toBe('directory');
+			expect(handle.name).toBe('');
+		});
+	});
 });
 
 describe('resolveHandle', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
 	test('When the path is empty, then it resolves to root', async () => {
 		const { parentPath, parentHandle, name } = await resolveHandle('');
 
@@ -209,10 +244,10 @@ describe('resolveHandle', () => {
 	});
 
 	test('When `rootDir` is provided, then it resolves the parent handle relative to it', async () => {
-		const root = await getDirHandle('CUSTOM_ROOT', { recursive: true });
+		const customRoot = await getDirHandle('CUSTOM_ROOT', { recursive: true });
 		await getDirHandle('CUSTOM_ROOT/foo/bar', { recursive: true });
 
-		const { parentPath, name, parentHandle } = await resolveHandle('foo/bar', { rootDir: root });
+		const { parentPath, name, parentHandle } = await resolveHandle('foo/bar', { rootDir: customRoot });
 
 		expect(parentPath).toBe('/foo');
 		expect(parentHandle.name).toBe('foo');
@@ -221,14 +256,6 @@ describe('resolveHandle', () => {
 });
 
 describe('getFileHandle', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
 	test('When the path is empty, then it throws an error', async () => {
 		await expect(getFileHandle('')).rejects.toThrow();
 	});
@@ -239,6 +266,7 @@ describe('getFileHandle', () => {
 
 	test('When the path points to a directory, then it throws an error', async () => {
 		await getDirHandle('foo', { recursive: true });
+
 		await expect(getFileHandle('foo')).rejects.toThrow();
 	});
 
@@ -288,6 +316,14 @@ describe('getFileHandle', () => {
 			await expect(getFileHandle('\0', { touch: true })).rejects.toThrow();
 		});
 
+		test('When the file name contains a slash, then it should be interpreted as a directory separator', async () => {
+			const handle = await getFileHandle('test/file.txt', { touch: true, recursive: true });
+
+			expect(handle).toBeDefined();
+			expect(handle.kind).toBe('file');
+			expect(handle.name).toBe('file.txt');
+		});
+
 		test('When the file name contains a backslash, then it throws an error', async () => {
 			await expect(getFileHandle('test\\file.txt', { touch: true })).rejects.toThrow();
 		});
@@ -305,53 +341,45 @@ describe('getFileHandle', () => {
 
 // #region Check existence
 describe('checkDirExists', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
 	test('When the directory exists, then it returns `true`', async () => {
 		await getDirHandle('foo', { recursive: true });
+
 		const exists = await checkDirExists('foo');
+
 		expect(exists).toBe(true);
 	});
 
 	test('When the directory does not exist, then it returns `false`', async () => {
 		const exists = await checkDirExists('foo.txt');
+
 		expect(exists).toBe(false);
 	});
 
 	test('When the path points to a file, then it throws an error', async () => {
 		await getFileHandle('baz.txt', { touch: true });
+
 		await expect(checkDirExists('baz.txt')).rejects.toThrow();
 	});
 });
 
 describe('checkFileExists', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
 	test('When the file exists, then it returns `true`', async () => {
 		await getFileHandle('foo.txt', { touch: true });
+
 		const exists = await checkFileExists('foo.txt');
+
 		expect(exists).toBe(true);
 	});
 
 	test('When the file does not exist, then it returns `false`', async () => {
 		const exists = await checkFileExists('foo.txt');
+
 		expect(exists).toBe(false);
 	});
 
 	test('When the path points to a directory, then it throws an error', async () => {
 		await getDirHandle('bar', { recursive: true });
+
 		await expect(checkFileExists('bar')).rejects.toThrow();
 	});
 });
@@ -486,19 +514,12 @@ describe('listDirEntries', () => {
 
 // #region Write File
 describe('writeFile', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
 	test('When writing to a new file, then it creates the file and writes the content', async () => {
 		await writeFile('foo.txt', 'foo');
 
 		const handle = await getFileHandle('foo.txt');
 		const file = await handle.getFile();
+
 		expect(await file.text()).toBe('foo');
 	});
 
@@ -512,8 +533,8 @@ describe('writeFile', () => {
 		const handle = await getFileHandle('foo.txt', { touch: true });
 
 		await writeFile('foo.txt', 'foo', { overwrite: true });
-
 		const file = await handle.getFile();
+
 		expect(await file.text()).toBe('foo');
 	});
 
@@ -526,6 +547,7 @@ describe('writeFile', () => {
 
 		const handle = await getFileHandle('foo/bar/baz.txt');
 		const file = await handle.getFile();
+
 		expect(await file.text()).toBe('baz');
 	});
 
@@ -535,38 +557,41 @@ describe('writeFile', () => {
 
 	test('When a file handle is provided, then it writes the content to that handle', async () => {
 		const handle = await getFileHandle('foo.txt', { touch: true });
-		await writeFile(handle, 'foo');
 
+		await writeFile(handle, 'foo');
 		const file = await handle.getFile();
+
 		expect(await file.text()).toBe('foo');
+	});
+
+	test('When a file handle is provided, the file has content and `overwrite` is set to false, then it throw an error', async () => {
+		await writeFile('foo.txt', 'foo');
+		const handle = await getFileHandle('foo.txt');
+
+		await expect(writeFile(handle, 'bar', { overwrite: false })).rejects.toThrow();
 	});
 
 	test('When a directory handle is provided, then it throws an error', async () => {
 		const dirHandle = await getDirHandle('dir', { recursive: true });
+
 		// oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
 		await expect(writeFile(dirHandle as unknown as FileSystemFileHandle, 'foo')).rejects.toThrow();
 	});
 
 	test('When a directory path is provided, then it throws an error', async () => {
 		await getDirHandle('dir', { recursive: true });
+
 		await expect(writeFile('dir', 'foo')).rejects.toThrow();
 	});
 });
 
 describe('appendFile', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
 	test('When appending to a new file, then it creates the file and writes the content', async () => {
 		await appendFile('foo.txt', 'foo');
 
 		const handle = await getFileHandle('foo.txt');
 		const file = await handle.getFile();
+
 		expect(await file.text()).toBe('foo');
 	});
 
@@ -576,6 +601,7 @@ describe('appendFile', () => {
 
 		const handle = await getFileHandle('foo.txt');
 		const file = await handle.getFile();
+
 		expect(await file.text()).toBe('foobar');
 	});
 
@@ -589,6 +615,7 @@ describe('appendFile', () => {
 
 		const handle = await getFileHandle('foo/bar/baz.txt');
 		const file = await handle.getFile();
+
 		expect(await file.text()).toBe('foobaz');
 	});
 
@@ -598,21 +625,24 @@ describe('appendFile', () => {
 
 	test('When a file handle is provided, then it appends the content to that handle', async () => {
 		const handle = await getFileHandle('foo.txt', { touch: true });
+
 		await writeFile(handle, 'foo');
 		await appendFile(handle, 'bar');
-
 		const file = await handle.getFile();
+
 		expect(await file.text()).toBe('foobar');
 	});
 
 	test('When a directory handle is provided, then it throws an error', async () => {
 		const dirHandle = await getDirHandle('dir', { recursive: true });
+
 		// oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
 		await expect(appendFile(dirHandle as unknown as FileSystemFileHandle, 'foo')).rejects.toThrow();
 	});
 
 	test('When a directory path is provided, then it throws an error', async () => {
 		await getDirHandle('dir', { recursive: true });
+
 		await expect(appendFile('dir', 'foo')).rejects.toThrow();
 	});
 });
@@ -620,26 +650,8 @@ describe('appendFile', () => {
 
 // #region Delete
 describe('removeDir', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
-	test('When the path is empty, then it removes all entries in the root directory', async () => {
-		await getDirHandle('foo', { recursive: true });
-		await removeDir('', { recursive: true });
-
-		const rootDir = await navigator.storage.getDirectory();
-		const entries = [];
-
-		for await (const name of rootDir.keys()) {
-			entries.push(name);
-		}
-
-		expect(entries.length).toBe(0);
+	test('When the path is empty, then it throws an error', async () => {
+		await expect(removeDir('')).rejects.toThrow();
 	});
 
 	test('When the path is a single slash, then it removes all entries in the root directory', async () => {
@@ -647,55 +659,47 @@ describe('removeDir', () => {
 		await removeDir('/', { recursive: true });
 
 		const rootDir = await navigator.storage.getDirectory();
-		const entries = [];
+		const names = await Array.fromAsync(rootDir.keys());
 
-		for await (const name of rootDir.keys()) {
-			entries.push(name);
-		}
-
-		expect(entries.length).toBe(0);
+		expect(names.length).toBe(0);
 	});
 
 	test('When the path points to a file, then it throws an error', async () => {
 		await getFileHandle('foo.txt', { touch: true });
+
 		await expect(removeDir('foo.txt', { recursive: true })).rejects.toThrow();
 	});
 
 	test('When the handle provided is a file handle, then it throws an error', async () => {
 		const handle = await getFileHandle('foo.txt', { touch: true });
+
 		// oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
 		await expect(removeDir(handle as unknown as FileSystemDirectoryHandle, { recursive: true })).rejects.toThrow();
 	});
 
 	test('When the handle provided is a directory handle, then it removes the directory', async () => {
 		const handle = await getDirHandle('foo', { recursive: true });
+
 		await removeDir(handle, { recursive: true });
 
-		const exists = await checkDirExists('foo');
-		expect(exists).toBe(false);
+		expect(await checkDirExists('foo')).toBe(false);
 	});
 
 	test('When the directory is not empty and the `recursive` flag is false, then it throws an error', async () => {
 		await getFileHandle('foo/bar.txt', { touch: true, recursive: true });
+
 		await expect(removeDir('foo', { recursive: false })).rejects.toThrow();
 	});
 });
 
 describe('removeFile', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
 	test('When the path is empty, then it throws an error', async () => {
 		await expect(removeFile('')).rejects.toThrow();
 	});
 
 	test('When the path points to a directory, then it throws an error', async () => {
 		await getDirHandle('foo', { recursive: true });
+
 		await expect(removeFile('foo')).rejects.toThrow();
 	});
 
@@ -705,22 +709,23 @@ describe('removeFile', () => {
 
 	test('When the path points to a file, then it removes the file', async () => {
 		await getFileHandle('foo.txt', { touch: true });
+
 		await removeFile('foo.txt');
 
-		const exists = await checkFileExists('foo.txt');
-		expect(exists).toBe(false);
+		expect(await checkFileExists('foo.txt')).toBe(false);
 	});
 
 	test('When the handle provided is a file handle, then it removes the file', async () => {
 		const handle = await getFileHandle('foo.txt', { touch: true });
+
 		await removeFile(handle);
 
-		const exists = await checkFileExists('foo.txt');
-		expect(exists).toBe(false);
+		expect(await checkFileExists('foo.txt')).toBe(false);
 	});
 
 	test('When the handle provided is a directory handle, then it throws an error', async () => {
 		const handle = await getDirHandle('foo', { recursive: true });
+
 		// oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
 		await expect(removeFile(handle as unknown as FileSystemFileHandle)).rejects.toThrow();
 	});
@@ -729,25 +734,19 @@ describe('removeFile', () => {
 
 // #region Copy
 describe('copyFile', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
 	test('When the file is copied, then it exists in the destination', async () => {
 		const content = 'Hello World';
 		await writeFile('source.txt', content);
 		await copyFile('source.txt', 'dest.txt');
 
 		const exists = await checkFileExists('dest.txt');
+
 		expect(exists).toBe(true);
 
 		const handle = await getFileHandle('dest.txt');
 		const file = await handle.getFile();
 		const text = await file.text();
+
 		expect(text).toBe(content);
 	});
 
@@ -760,14 +759,6 @@ describe('copyFile', () => {
 });
 
 describe('copyDir', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
 	test('When a directory is copied, then all its contents are copied recursively', async () => {
 		await writeFile('src/file1.txt', 'content1', { recursive: true });
 		await writeFile('src/sub/file2.txt', 'content2', { recursive: true });
@@ -787,11 +778,13 @@ describe('copyDir', () => {
 
 	test('When the source directory does not exist, then it throws an error', async () => {
 		await getDirHandle('dest', { recursive: true });
+
 		await expect(copyDir('src-err', 'dest')).rejects.toThrow();
 	});
 
 	test('When the destination directory does not exist, then it throws an error', async () => {
 		await getDirHandle('src', { recursive: true });
+
 		await expect(copyDir('src', 'dest')).rejects.toThrow();
 	});
 });
@@ -799,14 +792,6 @@ describe('copyDir', () => {
 
 // #region Move
 describe('moveFile', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
 	test('When the file is moved, then it exists in the destination and not in the source', async () => {
 		const content = 'Move me';
 		await writeFile('source.txt', content);
@@ -829,14 +814,6 @@ describe('moveFile', () => {
 });
 
 describe('moveDir', () => {
-	beforeEach(async () => {
-		const rootDir = await navigator.storage.getDirectory();
-
-		for await (const name of rootDir.keys()) {
-			await rootDir.removeEntry(name, { recursive: true });
-		}
-	});
-
 	test('When a directory is moved, then all its contents are moved to the destination', async () => {
 		await writeFile('src/file1.txt', 'content1', { recursive: true });
 		await writeFile('src/sub/file2.txt', 'content2', { recursive: true });
