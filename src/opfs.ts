@@ -213,8 +213,10 @@ export interface ListDirEntriesOptions {
 	type?: 'files' | 'directories' | 'both';
 
 	/**
-	 * If the entries should be sorted, meaning all directories will go first, and then all files.
-	 * The sorting can be either logographic (E.g.: "1", "10", "2") or numeric (E.g.: "1", "2", "10").
+	 * If the entries should be sorted. The sorting can be either logographic (E.g.: "1", "10", "2") or numeric (E.g.: "1", "2", "10").
+	 * If sorting is enabled, all entries on the same depth will go first, then the nested entries.
+	 *
+	 * **Note**: When sorting is disabled there is no guarantee that deep nested items won't come first than their parents.
 	 *
 	 * Defaults to numeric sorting.
 	 */
@@ -291,7 +293,15 @@ export async function listDirEntries(pathOrHandle: string | FileSystemDirectoryH
 
 	if (sorting) {
 		const collator = new Intl.Collator('en', { usage: 'sort', numeric: sorting === 'numeric' });
-		return entries.sort((first, second) => collator.compare(first.path, second.path));
+		return entries.sort((first, second) => {
+			const firstDepth = pathToSegments(first.path).length;
+			const secondDepth = pathToSegments(second.path).length;
+			if (firstDepth !== secondDepth) {
+				return firstDepth - secondDepth;
+			}
+
+			return collator.compare(first.path, second.path);
+		});
 	}
 
 	return entries;

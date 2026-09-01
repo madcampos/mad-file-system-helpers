@@ -426,48 +426,147 @@ describe('listDirEntries', () => {
 		expect(entries.length).toBe(7);
 	});
 
-	test('When sorting is not provided, then it defaults to numeric sorting', async () => {
-		await getDirHandle('b-dir', { recursive: true });
-		await getDirHandle('a-dir', { recursive: true });
-		await writeFile('file10.txt', '10', { recursive: true });
-		await writeFile('file2.txt', '2', { recursive: true });
-		await writeFile('file1.txt', '1', { recursive: true });
+	test('When sorting is not provided, then it defaults to numeric sorting across nested entries', async () => {
+		await writeFile('1.txt', '1', { recursive: true });
+		await writeFile('2.txt', '2', { recursive: true });
+		await writeFile('10.txt', '10', { recursive: true });
+		await getDirHandle('dir', { recursive: true });
+		await writeFile('dir/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/deep', { recursive: true });
+		await writeFile('dir/deep/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/deep2', { recursive: true });
+		await writeFile('dir/deep2/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/really/deep', { recursive: true });
+		await writeFile('dir/really/deep/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/really2/deep', { recursive: true });
+		await writeFile('dir/really2/deep/1.txt', '1', { recursive: true });
 
-		const entries = await listDirEntries('/');
+		const entries = await listDirEntries('/', { depth: Infinity });
 
-		expect(entries.map((entry) => entry.name)).toEqual(['a-dir', 'b-dir', 'file1.txt', 'file2.txt', 'file10.txt']);
+		expect(entries.map((entry) => entry.path)).toEqual([
+			'/1.txt',
+			'/2.txt',
+			'/10.txt',
+			'/dir',
+			'/dir/1.txt',
+			'/dir/deep',
+			'/dir/deep2',
+			'/dir/really',
+			'/dir/really2',
+			'/dir/deep/1.txt',
+			'/dir/deep2/1.txt',
+			'/dir/really/deep',
+			'/dir/really2/deep',
+			'/dir/really/deep/1.txt',
+			'/dir/really2/deep/1.txt'
+		]);
 	});
 
-	test('When logographic sorting is provided, then it sorts files logographically', async () => {
-		await writeFile('file2.txt', '2', { recursive: true });
-		await writeFile('file10.txt', '10', { recursive: true });
-		await writeFile('file1.txt', '1', { recursive: true });
+	test('When logographic sorting is provided, then it sorts nested files logographically', async () => {
+		await writeFile('1.txt', '1', { recursive: true });
+		await writeFile('2.txt', '2', { recursive: true });
+		await writeFile('10.txt', '10', { recursive: true });
+		await getDirHandle('dir', { recursive: true });
+		await writeFile('dir/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/deep', { recursive: true });
+		await writeFile('dir/deep/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/deep2', { recursive: true });
+		await writeFile('dir/deep2/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/really/deep', { recursive: true });
+		await writeFile('dir/really/deep/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/really2/deep', { recursive: true });
+		await writeFile('dir/really2/deep/1.txt', '1', { recursive: true });
 
-		const entries = await listDirEntries('/', { sorting: 'logo', type: 'files' });
+		const entries = await listDirEntries('/', { depth: Infinity, sorting: 'logo' });
 
-		expect(entries.map((entry) => entry.name)).toEqual(['file1.txt', 'file10.txt', 'file2.txt']);
+		expect(entries.map((entry) => entry.path)).toEqual([
+			'/1.txt',
+			'/10.txt',
+			'/2.txt',
+			'/dir',
+			'/dir/1.txt',
+			'/dir/deep',
+			'/dir/deep2',
+			'/dir/really',
+			'/dir/really2',
+			'/dir/deep/1.txt',
+			'/dir/deep2/1.txt',
+			'/dir/really/deep',
+			'/dir/really2/deep',
+			'/dir/really/deep/1.txt',
+			'/dir/really2/deep/1.txt'
+		]);
 	});
 
-	test('When numeric sorting is provided, then it sorts files numerically', async () => {
-		await writeFile('file2.txt', '2', { recursive: true });
-		await writeFile('file10.txt', '10', { recursive: true });
-		await writeFile('file1.txt', '1', { recursive: true });
+	test('When numeric sorting is provided, then it sorts nested files numerically', async () => {
+		await writeFile('1.txt', '1', { recursive: true });
+		await writeFile('2.txt', '2', { recursive: true });
+		await writeFile('10.txt', '10', { recursive: true });
+		await getDirHandle('dir', { recursive: true });
+		await writeFile('dir/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/deep', { recursive: true });
+		await writeFile('dir/deep/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/deep2', { recursive: true });
+		await writeFile('dir/deep2/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/really/deep', { recursive: true });
+		await writeFile('dir/really/deep/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/really2/deep', { recursive: true });
+		await writeFile('dir/really2/deep/1.txt', '1', { recursive: true });
 
-		const entries = await listDirEntries('/', { sorting: 'numeric', type: 'files' });
+		const entries = await listDirEntries('/', { depth: Infinity, sorting: 'numeric' });
 
-		expect(entries.map((entry) => entry.name)).toEqual(['file1.txt', 'file2.txt', 'file10.txt']);
+		expect(entries.map((entry) => entry.path)).toEqual([
+			'/1.txt',
+			'/2.txt',
+			'/10.txt',
+			'/dir',
+			'/dir/1.txt',
+			'/dir/deep',
+			'/dir/deep2',
+			'/dir/really',
+			'/dir/really2',
+			'/dir/deep/1.txt',
+			'/dir/deep2/1.txt',
+			'/dir/really/deep',
+			'/dir/really2/deep',
+			'/dir/really/deep/1.txt',
+			'/dir/really2/deep/1.txt'
+		]);
 	});
 
-	test('When sorting is disabled, then it does not sort files', async () => {
-		await getDirHandle('b-dir', { recursive: true });
-		await getDirHandle('a-dir', { recursive: true });
-		await writeFile('file10.txt', '10', { recursive: true });
-		await writeFile('file2.txt', '2', { recursive: true });
-		await writeFile('file1.txt', '1', { recursive: true });
+	test('When sorting is disabled, then it does not sort nested entries', async () => {
+		await writeFile('1.txt', '1', { recursive: true });
+		await writeFile('2.txt', '2', { recursive: true });
+		await writeFile('10.txt', '10', { recursive: true });
+		await getDirHandle('dir', { recursive: true });
+		await writeFile('dir/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/deep', { recursive: true });
+		await writeFile('dir/deep/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/deep2', { recursive: true });
+		await writeFile('dir/deep2/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/really/deep', { recursive: true });
+		await writeFile('dir/really/deep/1.txt', '1', { recursive: true });
+		await getDirHandle('dir/really2/deep', { recursive: true });
+		await writeFile('dir/really2/deep/1.txt', '1', { recursive: true });
 
-		const entries = await listDirEntries('/', { sorting: false, type: 'both' });
+		const entries = await listDirEntries('/', { depth: Infinity, sorting: false });
+		const paths = entries.map((entry) => entry.path);
 
-		expect(entries.map((entry) => entry.name)).toEqual(['a-dir', 'b-dir', 'file1.txt', 'file10.txt', 'file2.txt']);
+		expect(paths).toContain('/1.txt');
+		expect(paths).toContain('/2.txt');
+		expect(paths).toContain('/10.txt');
+		expect(paths).toContain('/dir');
+		expect(paths).toContain('/dir/1.txt');
+		expect(paths).toContain('/dir/deep');
+		expect(paths).toContain('/dir/deep2');
+		expect(paths).toContain('/dir/really');
+		expect(paths).toContain('/dir/really2');
+		expect(paths).toContain('/dir/deep/1.txt');
+		expect(paths).toContain('/dir/deep2/1.txt');
+		expect(paths).toContain('/dir/really/deep');
+		expect(paths).toContain('/dir/really2/deep');
+		expect(paths).toContain('/dir/really/deep/1.txt');
+		expect(paths).toContain('/dir/really2/deep/1.txt');
 	});
 
 	test('When type is not provided, then both files and directories are included', async () => {
