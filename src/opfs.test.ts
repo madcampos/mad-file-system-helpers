@@ -14,7 +14,7 @@ import {
 	moveFile,
 	removeDir,
 	removeFile,
-	resolveParentHandle,
+	resolveHandle,
 	writeFile
 } from './opfs.ts';
 
@@ -89,7 +89,7 @@ describe('getDirHandle', () => {
 	});
 });
 
-describe('resolveParentHandle', () => {
+describe('resolveHandle', () => {
 	beforeEach(async () => {
 		const rootDir = await navigator.storage.getDirectory();
 
@@ -98,8 +98,8 @@ describe('resolveParentHandle', () => {
 		}
 	});
 
-	test('When the path is empty, then it resolves to rootn', async () => {
-		const { parentPath, parentHandle, name } = await resolveParentHandle('');
+	test('When the path is empty, then it resolves to root', async () => {
+		const { parentPath, parentHandle, name } = await resolveHandle('');
 
 		expect(parentPath).toBe('/');
 		expect(parentHandle.name).toBe('');
@@ -107,7 +107,7 @@ describe('resolveParentHandle', () => {
 	});
 
 	test('When the path is a single slash, then it resolves to root', async () => {
-		const { parentPath, parentHandle, name } = await resolveParentHandle('/');
+		const { parentPath, parentHandle, name } = await resolveHandle('/');
 
 		expect(parentPath).toBe('/');
 		expect(parentHandle.name).toBe('');
@@ -116,7 +116,7 @@ describe('resolveParentHandle', () => {
 
 	test('When the input is a root handle, then it resolves to itself', async () => {
 		const rootDir = await navigator.storage.getDirectory();
-		const { parentPath, parentHandle, name } = await resolveParentHandle(rootDir);
+		const { parentPath, parentHandle, name } = await resolveHandle(rootDir);
 
 		expect(parentPath).toBe('/');
 		expect(parentHandle.name).toBe('');
@@ -124,7 +124,7 @@ describe('resolveParentHandle', () => {
 	});
 
 	test('When the path is a first-level directory, then it resolves to the root as parent', async () => {
-		const { parentPath, parentHandle, name } = await resolveParentHandle('foo');
+		const { parentPath, parentHandle, name } = await resolveHandle('foo');
 
 		expect(parentPath).toBe('/');
 		expect(parentHandle.name).toBe('');
@@ -134,7 +134,7 @@ describe('resolveParentHandle', () => {
 	test('When the path is deeply nested, then it resolves to its immediate parent correctly', async () => {
 		await getDirHandle('foo/bar/baz', { recursive: true });
 
-		const { parentPath, parentHandle, name } = await resolveParentHandle('foo/bar/baz');
+		const { parentPath, parentHandle, name } = await resolveHandle('foo/bar/baz');
 
 		expect(parentPath).toBe('/foo/bar');
 		expect(parentHandle.name).toBe('bar');
@@ -143,7 +143,7 @@ describe('resolveParentHandle', () => {
 
 	test('When the input is a first-level handle, then it resolves to the root as parent', async () => {
 		const handle = await getDirHandle('foo', { recursive: true });
-		const { parentPath, parentHandle, name } = await resolveParentHandle(handle);
+		const { parentPath, parentHandle, name } = await resolveHandle(handle);
 
 		expect(parentPath).toBe('/');
 		expect(parentHandle.name).toBe('');
@@ -152,7 +152,7 @@ describe('resolveParentHandle', () => {
 
 	test('When the input is a deeply nested handle, then it resolves to its immediate parent', async () => {
 		const handle = await getDirHandle('foo/bar/baz', { recursive: true });
-		const { parentPath, parentHandle, name } = await resolveParentHandle(handle);
+		const { parentPath, parentHandle, name } = await resolveHandle(handle);
 
 		expect(parentPath).toBe('/foo/bar');
 		expect(parentHandle.name).toBe('bar');
@@ -160,11 +160,11 @@ describe('resolveParentHandle', () => {
 	});
 
 	test('When the path does not exist and the `recursive` flag is false, then it throws an error', async () => {
-		await expect(resolveParentHandle('foo/bar', { recursive: false })).rejects.toThrow();
+		await expect(resolveHandle('foo/bar', { recursive: false })).rejects.toThrow();
 	});
 
 	test('When the path does not exist and the `recursive` flag is true, then it ensures the parent exists and resolves correctly', async () => {
-		const { parentPath, parentHandle, name } = await resolveParentHandle('foo/bar', { recursive: true });
+		const { parentPath, parentHandle, name } = await resolveHandle('foo/bar', { recursive: true });
 
 		expect(parentPath).toBe('/foo');
 		expect(parentHandle.name).toBe('foo');
@@ -175,7 +175,7 @@ describe('resolveParentHandle', () => {
 		const root = await getDirHandle('CUSTOM_ROOT', { recursive: true });
 		await getDirHandle('CUSTOM_ROOT/foo/bar', { recursive: true });
 
-		const { parentPath, name, parentHandle } = await resolveParentHandle('foo/bar', { rootDir: root });
+		const { parentPath, name, parentHandle } = await resolveHandle('foo/bar', { rootDir: root });
 
 		expect(parentPath).toBe('/foo');
 		expect(parentHandle.name).toBe('foo');
@@ -330,9 +330,11 @@ describe('listDirEntries', () => {
 		}
 
 		await getDirHandle('foo', { recursive: true });
+		await getFileHandle('bar/baz.txt', { touch: true, recursive: true });
+		await getFileHandle('bar/quux.txt', { touch: true, recursive: true });
 		await getDirHandle('bar/woot', { recursive: true });
-		await getFileHandle('bar/baz.txt', { touch: true });
-		await getFileHandle('bar/quux.txt', { touch: true });
+		await getFileHandle('bar/woot/zolt.txt', { touch: true });
+		await getFileHandle('bar/woot/yeet.txt', { touch: true });
 	});
 
 	test('When no depth is provided, then it returns only the immediate children', async () => {
@@ -340,24 +342,20 @@ describe('listDirEntries', () => {
 
 		// oxlint-disable-next-line no-magic-numbers
 		expect(entries.length).toBe(2);
-		expect(entries.every(({ children }) => !children?.length)).toBe(true);
 	});
 
 	test('When a partial depth is provided, then it returns children up to that depth', async () => {
 		const entries = await listDirEntries('/', { depth: 1 });
 
 		// oxlint-disable-next-line no-magic-numbers
-		expect(entries.length).toBe(2);
-		expect(entries.some(({ children, handle }) => handle instanceof FileSystemDirectoryHandle && children !== undefined)).toBe(true);
+		expect(entries.length).toBe(5);
 	});
 
 	test('When depth is set to Infinity, then it returns all nested children', async () => {
 		const entries = await listDirEntries('/', { depth: Infinity });
 
 		// oxlint-disable-next-line no-magic-numbers
-		expect(entries.length).toBe(2);
-		expect(entries.every(({ children, handle }) => (handle instanceof FileSystemDirectoryHandle && children !== undefined) || (handle instanceof FileSystemFileHandle)))
-			.toBe(true);
+		expect(entries.length).toBe(7);
 	});
 });
 // #endregion
@@ -663,6 +661,11 @@ describe('copyDir', () => {
 		expect(await file2.text()).toBe('content2');
 	});
 
+	test('When the source directory does not exist, then it throws an error', async () => {
+		await getDirHandle('dest', { recursive: true });
+		await expect(copyDir('src-err', 'dest')).rejects.toThrow();
+	});
+
 	test('When the destination directory does not exist, then it throws an error', async () => {
 		await getDirHandle('src', { recursive: true });
 		await expect(copyDir('src', 'dest')).rejects.toThrow();
@@ -713,17 +716,22 @@ describe('moveDir', () => {
 	test('When a directory is moved, then all its contents are moved to the destination', async () => {
 		await writeFile('src/file1.txt', 'content1', { recursive: true });
 		await writeFile('src/sub/file2.txt', 'content2', { recursive: true });
-
 		await getDirHandle('dest', { recursive: true });
+
 		await moveDir('src', 'dest');
 
 		expect(await checkFileExists('dest/file1.txt')).toBe(true);
 		expect(await checkFileExists('dest/sub/file2.txt')).toBe(true);
 		expect(await checkFileExists('src/file1.txt')).toBe(false);
 		expect(await checkFileExists('src/sub/file2.txt')).toBe(false);
+		expect(await checkDirExists('src')).toBe(false);
 
 		const file2 = await (await getFileHandle('dest/sub/file2.txt')).getFile();
 		expect(await file2.text()).toBe('content2');
+	});
+
+	test('When the source directory does not exist, then it throws an error', async () => {
+		await expect(moveDir('src-err', 'dest')).rejects.toThrow();
 	});
 });
 // #endregion

@@ -40,6 +40,12 @@ export async function getDirHandle(path: string, { rootDir, recursive }: GetDirH
 	return currentDirHandle;
 }
 
+export interface ResolvedHandle {
+	parentHandle: FileSystemDirectoryHandle;
+	parentPath: string;
+	name: string;
+}
+
 /**
  * Resolves the parent item for this path or handle.
  *
@@ -48,15 +54,25 @@ export async function getDirHandle(path: string, { rootDir, recursive }: GetDirH
  * @param pathOrHandle A path string or a {@link FileSystemHandle}
  * @param options The options for function.
  */
-export async function resolveParentHandle(pathOrHandle: string | FileSystemHandle, { recursive, rootDir }: GetDirHandleOptions = {}) {
+export async function resolveHandle(pathOrHandle: string | FileSystemHandle, { recursive, rootDir }: GetDirHandleOptions = {}) {
 	const resolvedRootDir = rootDir ?? await navigator.storage.getDirectory();
 	let resolvedPath;
 
 	if (typeof pathOrHandle === 'string') {
 		resolvedPath = resolve(pathOrHandle);
 	} else {
-		resolvedPath = resolve((await resolvedRootDir.resolve(pathOrHandle) ?? []).join('/'));
+		resolvedPath = resolve(...(await resolvedRootDir.resolve(pathOrHandle) ?? []));
 	}
+
+	if (resolvedPath === '/') {
+		return {
+			parentHandle: resolvedRootDir,
+			parentPath: '/',
+			name: ''
+		} satisfies ResolvedHandle;
+	}
+
+	const name = basename(resolvedPath);
 
 	const parentDirPath = dirname(resolvedPath);
 	const parentDirHandle = await getDirHandle(parentDirPath, { rootDir, recursive });
@@ -64,8 +80,8 @@ export async function resolveParentHandle(pathOrHandle: string | FileSystemHandl
 	return {
 		parentHandle: parentDirHandle,
 		parentPath: parentDirPath,
-		name: basename(resolvedPath)
-	};
+		name
+	} satisfies ResolvedHandle;
 }
 
 export interface GetFileHandleOptions {
@@ -113,7 +129,7 @@ export interface CheckDirExistsOptions {
 
 export async function checkDirExists(path: string, { rootDir }: CheckDirExistsOptions = {}) {
 	try {
-		const { name, parentHandle } = await resolveParentHandle(path, { rootDir });
+		const { name, parentHandle } = await resolveHandle(path, { rootDir });
 
 		await parentHandle.getDirectoryHandle(name, { create: false });
 
@@ -138,7 +154,7 @@ export interface CheckFileExistsOptions {
 
 export async function checkFileExists(path: string, { rootDir }: CheckFileExistsOptions = {}) {
 	try {
-		const { name, parentHandle } = await resolveParentHandle(path, { rootDir });
+		const { name, parentHandle } = await resolveHandle(path, { rootDir });
 
 		await parentHandle.getFileHandle(name, { create: false });
 
@@ -170,7 +186,6 @@ export interface FileSystemEntry {
 	name: string;
 	path: string;
 	handle: FileSystemHandle;
-	children?: FileSystemEntry[];
 }
 
 /**
@@ -182,37 +197,47 @@ export interface FileSystemEntry {
  * @param options The options for function.
  */
 export async function listDirEntries(pathOrHandle: string | FileSystemDirectoryHandle, { depth = 0, rootDir }: ListDirEntriesOptions = {}) {
-	const resolved = await resolveParentHandle(pathOrHandle, { rootDir });
+	const resolved = await resolveHandle(pathOrHandle, { rootDir });
 	const resolvedRootHandle = rootDir ?? await navigator.storage.getDirectory();
 	const dirHandle = (resolved.parentPath === '/' && resolved.name === '') ? resolvedRootHandle : await resolved.parentHandle.getDirectoryHandle(resolved.name);
 
-	async function getRecursiveEntries(curDirHandle: FileSystemDirectoryHandle, curDepth: number) {
-		const entries: FileSystemEntry[] = [];
-		const { parentPath, name: parentName } = await resolveParentHandle(curDirHandle, { rootDir });
+	const entries: FileSystemEntry[] = [];
 
-		for await (const [name, entry] of curDirHandle.entries()) {
-			const path = resolve(parentPath, parentName, name);
+	const stack: { entryDepth: number, name: string, handle: FileSystemHandle }[] = [];
+	stack.push(...(await Array.fromAsync(dirHandle.entries())).map(([name, handle]) => ({
+		entryDepth: 0,
+		handle,
+		name
+	})));
 
-			if (entry.kind === 'file') {
-				entries.push({
-					name,
-					path,
-					handle: entry
-				});
-			} else {
-				entries.push({
-					name,
-					path,
-					handle: entry,
-					children: curDepth < depth ? await getRecursiveEntries(entry, curDepth + 1) : []
-				});
+	while (stack.length > 0) {
+		// oxlint-disable no-await-in-loop
+		// oxlint-disable-next-line typescript/no-non-null-assertion
+		const { handle, name, entryDepth } = stack.pop()!;
+		const { parentPath } = await resolveHandle(handle, { rootDir });
+		const path = resolve(parentPath, name);
+
+		const entry: FileSystemEntry = {
+			name,
+			path,
+			handle
+		};
+
+		entries.push(entry);
+
+		if (handle instanceof FileSystemDirectoryHandle) {
+			if (entryDepth < depth) {
+				stack.push(...(await Array.fromAsync(handle.entries())).map(([name, childHandle]) => ({
+					entryDepth: entryDepth + 1,
+					handle: childHandle,
+					name
+				})));
 			}
 		}
-
-		return entries;
+		// oxlint-enable no-await-in-loop
 	}
 
-	return getRecursiveEntries(dirHandle, 0);
+	return entries;
 }
 // #endregion
 
@@ -244,7 +269,7 @@ export async function writeFile(
 	data: FileSystemWriteChunkType,
 	{ recursive = true, rootDir, overwrite = true }: WriteFileHandleOptions = {}
 ) {
-	const { name, parentHandle } = await resolveParentHandle(pathOrHandle, { recursive, rootDir });
+	const { name, parentHandle } = await resolveHandle(pathOrHandle, { recursive, rootDir });
 	const fileHandle = await parentHandle.getFileHandle(name, { create: true });
 	const file = await fileHandle.getFile();
 
@@ -281,7 +306,7 @@ export interface AppendFileHandleOptions {
  * @param options The options for function.
  */
 export async function appendFile(pathOrHandle: string | FileSystemFileHandle, data: FileSystemWriteChunkType, { recursive, rootDir }: AppendFileHandleOptions = {}) {
-	const { name, parentHandle } = await resolveParentHandle(pathOrHandle, { recursive, rootDir });
+	const { name, parentHandle } = await resolveHandle(pathOrHandle, { recursive, rootDir });
 	const fileHandle = await parentHandle.getFileHandle(name, { create: true });
 
 	await requestHandlePermissions(fileHandle, 'readwrite');
@@ -321,8 +346,9 @@ export interface RemoveDirOptions {
  * @param options The options for function.
  */
 export async function removeDir(pathOrHandle: string | FileSystemDirectoryHandle, { recursive, rootDir }: RemoveDirOptions) {
-	const { name, parentHandle, parentPath } = await resolveParentHandle(pathOrHandle, { rootDir });
+	const { name, parentHandle, parentPath } = await resolveHandle(pathOrHandle, { rootDir });
 
+	// INFO: handle the root of the file system.
 	if (parentPath === '/' && name === '') {
 		await requestHandlePermissions(parentHandle, 'readwrite');
 
@@ -333,14 +359,7 @@ export async function removeDir(pathOrHandle: string | FileSystemDirectoryHandle
 		return;
 	}
 
-	const dirHandle = await parentHandle.getDirectoryHandle(name);
-	const entries = await listDirEntries(dirHandle, { rootDir, depth: 0 });
-
-	for (const entry of entries) {
-		// oxlint-disable-next-line no-await-in-loop
-		await parentHandle.removeEntry(entry.name, { recursive });
-	}
-
+	await parentHandle.getDirectoryHandle(name);
 	await parentHandle.removeEntry(name, { recursive });
 }
 
@@ -360,17 +379,55 @@ export interface RemoveFileOptions {
  * @param options The options for function.
  */
 export async function removeFile(pathOrHandle: string | FileSystemFileHandle, { rootDir }: RemoveFileOptions = {}) {
-	const { name, parentHandle } = await resolveParentHandle(pathOrHandle, { rootDir });
+	const { name, parentHandle } = await resolveHandle(pathOrHandle, { rootDir });
 	const fileHandle = await parentHandle.getFileHandle(name);
 
 	await requestHandlePermissions(fileHandle, 'readwrite');
-	await requestHandlePermissions(parentHandle, 'readwrite');
 
 	await parentHandle.removeEntry(name);
 }
 // #endregion
 
 // #region Copy
+export interface CopyFileOptions {
+	/** Creates the destination directory structure if it doesn't exist. Throws an error otherwise */
+	recursive?: boolean;
+
+	/** Overwrites the file in the destination if it already exists. */
+	overwrite?: boolean;
+
+	/**
+	 * The file system root directory to resolve against. If not provided the Origin Private File System root will be used.
+	 *
+	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/File_System_API#origin_private_file_system|MDN Reference}
+	 */
+	rootDir?: FileSystemDirectoryHandle;
+}
+
+/**
+ * Copies a file from one location to another.
+ *
+ * @param sourcePathOrHandle The path string or a {@link FileSystemDirectoryHandle} for the source file.
+ * @param destinationPathOrHandle The path string or a {@link FileSystemDirectoryHandle} for the destination file.
+ * @param options The options for function.
+ */
+export async function copyFile(
+	sourcePathOrHandle: string | FileSystemFileHandle,
+	destinationPathOrHandle: string | FileSystemFileHandle,
+	{ overwrite = true, rootDir, recursive = true }: CopyFileOptions = {}
+) {
+	let sourceHandle;
+
+	if (typeof sourcePathOrHandle === 'string') {
+		sourceHandle = await getFileHandle(sourcePathOrHandle, { rootDir });
+	} else {
+		sourceHandle = sourcePathOrHandle;
+	}
+
+	const file = await sourceHandle.getFile();
+	await writeFile(destinationPathOrHandle, await file.arrayBuffer(), { rootDir, recursive, overwrite });
+}
+
 export interface CopyDirOptions {
 	/** Creates the destination directory structure if it doesn't exist. Throws an error otherwise */
 	recursive?: boolean;
@@ -399,31 +456,33 @@ export async function copyDir(
 	{ overwrite = true, rootDir, recursive = true }: CopyDirOptions = {}
 ) {
 	const entries = await listDirEntries(sourcePathOrHandle, { depth: Infinity, rootDir });
-	const { name: destName, parentHandle: destParentHandle } = await resolveParentHandle(destinationPathOrHandle, { recursive, rootDir });
-	const destHandle = await destParentHandle.getDirectoryHandle(destName);
 
-	async function copyRecursive(items: FileSystemEntry[], currentDestHandle: FileSystemDirectoryHandle) {
-		for (const item of items) {
-			const handle = item.handle;
-			// oxlint-disable no-await-in-loop
-			if (handle instanceof FileSystemFileHandle) {
-				const destFileHandle = await currentDestHandle.getFileHandle(item.name, { create: true });
+	const { parentPath: sourceParentPath, name: sourceName, parentHandle: sourceParentHandle } = await resolveHandle(sourcePathOrHandle, { rootDir });
+	const sourcePath = resolve(sourceParentPath, sourceName);
 
-				// oxlint-disable-next-line no-use-before-define
-				await copyFile(handle, destFileHandle, { recursive, rootDir, overwrite });
-			} else if (item.children) {
-				const newDestDirHandle = await currentDestHandle.getDirectoryHandle(item.name, { create: true });
+	await sourceParentHandle.getDirectoryHandle(sourceName);
 
-				await copyRecursive(item.children, newDestDirHandle);
-			}
-			// oxlint-enable no-await-in-loop
+	const { parentPath: destParentPath, name: destName, parentHandle: destParentHandle } = await resolveHandle(destinationPathOrHandle, { recursive, rootDir });
+	const destPath = resolve(destParentPath, destName);
+
+	await destParentHandle.getDirectoryHandle(destName);
+
+	for (const { handle: entryHandle, path: entryPath } of entries) {
+		const resolvedEntryPath = entryPath.replace(sourcePath, destPath);
+
+		// oxlint-disable no-await-in-loop
+		if (entryHandle instanceof FileSystemFileHandle) {
+			await copyFile(entryHandle, resolvedEntryPath, { recursive, rootDir, overwrite });
+		} else {
+			await getDirHandle(resolvedEntryPath, { rootDir, recursive: true });
 		}
+		// oxlint-enable no-await-in-loop
 	}
-
-	await copyRecursive(entries, destHandle);
 }
+// #endregion
 
-export interface CopyFileOptions {
+// #region Move
+export interface MoveFileOptions {
 	/** Creates the destination directory structure if it doesn't exist. Throws an error otherwise */
 	recursive?: boolean;
 
@@ -439,31 +498,21 @@ export interface CopyFileOptions {
 }
 
 /**
- * Copies a file from one location to another.
+ * Moves a file from one location to another.
  *
  * @param sourcePathOrHandle The path string or a {@link FileSystemDirectoryHandle} for the source file.
  * @param destinationPathOrHandle The path string or a {@link FileSystemDirectoryHandle} for the destination file.
  * @param options The options for function.
  */
-export async function copyFile(
+export async function moveFile(
 	sourcePathOrHandle: string | FileSystemFileHandle,
 	destinationPathOrHandle: string | FileSystemFileHandle,
-	{ overwrite = true, rootDir, recursive = true }: CopyDirOptions = {}
+	{ overwrite = true, rootDir, recursive = true }: MoveFileOptions = {}
 ) {
-	let sourceHandle;
-
-	if (typeof sourcePathOrHandle === 'string') {
-		sourceHandle = await getFileHandle(sourcePathOrHandle, { rootDir });
-	} else {
-		sourceHandle = sourcePathOrHandle;
-	}
-
-	const file = await sourceHandle.getFile();
-	await writeFile(destinationPathOrHandle, await file.arrayBuffer(), { rootDir, recursive, overwrite });
+	await copyFile(sourcePathOrHandle, destinationPathOrHandle, { overwrite, rootDir, recursive });
+	await removeFile(sourcePathOrHandle, { rootDir });
 }
-// #endregion
 
-// #region Move
 export interface MoveDirOptions {
 	/** Creates the destination directory structure if it doesn't exist. Throws an error otherwise */
 	recursive?: boolean;
@@ -492,61 +541,27 @@ export async function moveDir(
 	{ overwrite = true, rootDir, recursive = true }: CopyDirOptions = {}
 ) {
 	const entries = await listDirEntries(sourcePathOrHandle, { depth: Infinity, rootDir });
-	const { name: destName, parentHandle: destParentHandle } = await resolveParentHandle(destinationPathOrHandle, { recursive, rootDir });
-	const destHandle = await destParentHandle.getDirectoryHandle(destName);
 
-	async function moveRecursive(items: FileSystemEntry[], currentDestHandle: FileSystemDirectoryHandle) {
-		for (const item of items) {
-			const handle = item.handle;
-			// oxlint-disable no-await-in-loop
-			if (handle instanceof FileSystemFileHandle) {
-				const destFileHandle = await currentDestHandle.getFileHandle(item.name, { create: true });
+	const { parentPath: sourceParentPath, name: sourceName, parentHandle: sourceParentHandle } = await resolveHandle(sourcePathOrHandle, { rootDir });
+	const sourcePath = resolve(sourceParentPath, sourceName);
 
-				// oxlint-disable-next-line no-use-before-define
-				await moveFile(handle, destFileHandle, { recursive, rootDir, overwrite });
-			} else if (item.children) {
-				const newDestDirHandle = await currentDestHandle.getDirectoryHandle(item.name, { create: true });
+	await sourceParentHandle.getDirectoryHandle(sourceName);
 
-				await moveRecursive(item.children, newDestDirHandle);
-				// oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion
-				await removeDir(handle as FileSystemDirectoryHandle, { recursive: true, rootDir });
-			}
-			// oxlint-enable no-await-in-loop
+	const { parentPath: destParentPath, name: destName } = await resolveHandle(destinationPathOrHandle, { recursive, rootDir });
+	const destPath = resolve(destParentPath, destName);
+
+	for (const { handle: entryHandle, path: entryPath } of entries) {
+		const resolvedEntryPath = entryPath.replace(sourcePath, destPath);
+
+		// oxlint-disable no-await-in-loop
+		if (entryHandle instanceof FileSystemFileHandle) {
+			await moveFile(entryHandle, resolvedEntryPath, { recursive, rootDir, overwrite });
+		} else {
+			await getDirHandle(resolvedEntryPath, { rootDir, recursive: true });
 		}
+		// oxlint-enable no-await-in-loop
 	}
 
-	await moveRecursive(entries, destHandle);
+	await removeDir(sourcePath, { recursive: true, rootDir });
 }
-
-export interface MoveFileOptions {
-	/** Creates the destination directory structure if it doesn't exist. Throws an error otherwise */
-	recursive?: boolean;
-
-	/** Overwrites the file in the destination if it already exists. */
-	overwrite?: boolean;
-
-	/**
-	 * The file system root directory to resolve against. If not provided the Origin Private File System root will be used.
-	 *
-	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/File_System_API#origin_private_file_system|MDN Reference}
-	 */
-	rootDir?: FileSystemDirectoryHandle;
-}
-
-/**
- * Moves a file from one location to another.
- *
- * @param sourcePathOrHandle The path string or a {@link FileSystemDirectoryHandle} for the source file.
- * @param destinationPathOrHandle The path string or a {@link FileSystemDirectoryHandle} for the destination file.
- * @param options The options for function.
- */
-export async function moveFile(
-	sourcePathOrHandle: string | FileSystemFileHandle,
-	destinationPathOrHandle: string | FileSystemFileHandle,
-	{ overwrite = true, rootDir, recursive = true }: CopyDirOptions = {}
-) {
-	await copyFile(sourcePathOrHandle, destinationPathOrHandle, { overwrite, rootDir, recursive });
-	await removeFile(sourcePathOrHandle, { rootDir });
-}
-
 // #endregion
