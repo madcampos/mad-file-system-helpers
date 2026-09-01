@@ -9,6 +9,18 @@
 		"origin private file system",
 		"OPFS"
 	],
+	"devEngines": {
+		"runtime": {
+			"name": "node",
+			"version": "^26.4.0",
+			"onFail": "error"
+		},
+		"packageManager": {
+			"name": "pnpm",
+			"version": "^11.20.0",
+			"onFail": "error"
+		}
+	},
 	"author": {
 		"name": "madcampos",
 		"url": "https://madcampos.dev/"
