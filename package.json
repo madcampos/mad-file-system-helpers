@@ -45,9 +45,9 @@
 	"scripts": {
 		"typecheck": "tsc --noEmit",
 		"lint:js": "oxlint --fix",
-		"lint": "npm run typecheck && npm run lint:js",
+		"lint": "pnpm run typecheck && pnpm run lint:js",
 		"format": "dprint fmt",
-		"version": "npm version --sign-git-tag --message \"chore: update package version\"",
+		"version": "pnpm version --sign-git-tag --message \"chore: update package version\"",
 		"postversion": "changelog --output \"docs/changelog\" --push --create-release",
 		"update": "update",
 		"browsers": "playwright install chromium",
